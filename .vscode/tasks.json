@@ -12,8 +12,8 @@
                 "-std=c++17",
                 "-I./include",
                 "-L./lib",
-                "src/main.cpp",
                 "src/glad.c",
+                "src/**.cpp", // for linking all the cpp files
                 "-o",
                 "output.exe",
                 "-lglfw3dll"
