@@ -4,7 +4,6 @@
 
 #include "Renderer.h"
 #include "VertexBuffer.h"
-#include "VertexBufferLayout.h"
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
@@ -14,7 +13,6 @@ using namespace std;
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-const float OFFSET = 0.5f;
 
 int main()
 {
@@ -79,6 +77,8 @@ int main()
         0,1,2
     };
 
+    float OFFSET = 0.5f;
+
     for(int i = 0 ; i < 8 ; i++){
         position_front[i] += OFFSET;
         positions_back[i] += OFFSET;
@@ -127,26 +127,26 @@ int main()
 
     glBindVertexArray(0);
 
+    Renderer renderer;
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
     {   
         glClearColor(0.4f, 0.4f, 0.4f,1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        renderer.clear();
 
-        glDrawArrays(GL_TRIANGLES , 0 , 3);
-        VAO[0] -> bind();   // back side
         shader -> setUniform4f("u_Color" , 0.1f , 0.1f , 0.1f , 1.0f);
-        glDrawElements(GL_TRIANGLES, 6 , GL_UNSIGNED_INT , nullptr);
-        VAO[1] -> bind();   // front side
+        renderer.draw(*VAO[0] , *IBO[0] , *shader); // back side
+
         shader -> setUniform4f("u_Color" , 0.27f , 0.27f , 0.27f , 1.0f);
-        glDrawElements(GL_TRIANGLES, 6 , GL_UNSIGNED_INT , nullptr);
-        VAO[2] -> bind();   // left side
+        renderer.draw(*VAO[1] , *IBO[0] , *shader); // front side
+
         shader -> setUniform4f("u_Color" , 0.37f , 0.37f , 0.37f , 1.0f);
-        glDrawElements(GL_TRIANGLES, 6 , GL_UNSIGNED_INT , nullptr);
-        VAO[3] -> bind();   // right side
+        renderer.draw(*VAO[2] , *IBO[1] , *shader); // left side
+
         shader -> setUniform4f("u_Color" , 0.15f , 0.15f , 0.15f , 1.0f);
-        GLCall(glDrawElements(GL_TRIANGLES, 3 , GL_UNSIGNED_INT , nullptr));
+        renderer.draw(*VAO[3] , *IBO[2] , *shader); // right side
 
         glfwSwapBuffers(window);
         glfwPollEvents();
