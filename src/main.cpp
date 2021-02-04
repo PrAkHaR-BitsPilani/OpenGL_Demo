@@ -46,23 +46,23 @@ int main()
     cout << glGetString(GL_VERSION) << "\n";
 
     vector<float> positions_back = {
-        -0.5f, -0.5f,
-        0.5f, -0.5f,
-        0.5f, 0.5f,
-        -0.5f , 0.5f
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f , 1.0f
     };
     vector<float>position_front;
     for(int i = 0 ; i < 8 ; i++)position_front.push_back(positions_back[i] - 0.5f);
     vector<float>position_left = {
-        0.0f, 0.0f,
         0.5f, 0.5f,
-        0.0f, -1.0f,
-        0.5f, -0.5f
+        1.0f, 1.0f,
+        0.5f, -0.5f,
+        1.0f, 0.0f
     };
     vector<float>position_right = {
-        -1.0f, 0.0f,
         -0.5f, 0.5f,
-        -0.5f, 0.0f
+        0.0f, 1.0f,
+        0.0f, 0.5f
     };
 
     vector<unsigned int> indices_front_back= {
@@ -76,17 +76,6 @@ int main()
     vector<unsigned int>indices_right{
         0,1,2
     };
-
-    float OFFSET = 0.5f;
-
-    for(int i = 0 ; i < 8 ; i++){
-        position_front[i] += OFFSET;
-        positions_back[i] += OFFSET;
-        position_left[i] += OFFSET;
-    }
-    for(int i = 0 ; i < 6; i++){
-        position_right[i] += OFFSET;
-    }
 
     VertexArray* VAO[4];
     VertexBuffer* VBO[4];
