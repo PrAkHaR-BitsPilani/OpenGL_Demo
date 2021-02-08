@@ -32,12 +32,17 @@ void Shader::unbind() const
     GLCall(glUseProgram(0));
 }
 
+void Shader::setUniform1i(const std::string& name , int value)
+{
+    GLCall(glUniform1i(getUniformLocation(name) , value));
+}
+
 void Shader::setUniform4f(const std::string& name , float v0, float v1, float v2, float v3)
 {
     GLCall(glUniform4f(getUniformLocation(name) , v0 , v1 , v2 , v3));
 }
 
-unsigned int Shader::getUniformLocation(const std::string& name)
+int Shader::getUniformLocation(const std::string& name)
 {
     if(m_uniformLocationCache.find(name) != m_uniformLocationCache.end())
         return m_uniformLocationCache[name];
@@ -91,7 +96,7 @@ unsigned int Shader::compileShader(unsigned int type, const string &source)
         GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
         char *message = (char *)malloc(length * sizeof(char));
         GLCall(glGetShaderInfoLog(id, length, &length, message));
-        cout << "Error in " << ((type == GL_VERTEX_SHADER) ? "vertex" : "fragment") << " shade" << endl;
+        cout << "Error in " << ((type == GL_VERTEX_SHADER) ? "vertex" : "fragment") << " shader" << endl;
         cout << message << endl;
         GLCall(glDeleteShader(id));
         return -1;
