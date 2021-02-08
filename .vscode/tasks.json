@@ -13,7 +13,8 @@
                 "-I./include",
                 "-L./lib",
                 "src/glad.c",
-                "src/**.cpp", // for linking all the cpp files
+                "src/**.cpp", // for linking all the cpp files,
+                "src/external/stb_image/stb_image.cpp", // for external file
                 "-o",
                 "output.exe",
                 "-lglfw3dll"
