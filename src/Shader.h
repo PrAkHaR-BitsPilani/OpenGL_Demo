@@ -2,6 +2,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "external/glm/glm.hpp"
+#include "external/glm/gtc/type_ptr.hpp"
+
 struct shaderSource{
     std::string VertexSource;
     std::string FragementSource;
@@ -26,6 +29,7 @@ public:
     void bind() const;
     void unbind() const;
 
-    void setUniform1i(const std::string& name , int value);
+    void setUniform1i(const std::string& name , int value); 
     void setUniform4f(const std::string& name , float v0, float v1, float v2, float v3);
+    void setUniformMat4f(const std::string& name , const glm::mat4& mat); 
 };;
