@@ -5,9 +5,11 @@ layout(location = 1) in vec2 texCoord;
 
 out vec2 v_TexCoord;
 
+uniform mat4 transform;
+
 void main()
 {
-    gl_Position = vec4(position,1.0);
+    gl_Position = transform * vec4(position,1.0);
     v_TexCoord = texCoord;
 };
 
@@ -17,7 +19,6 @@ layout(location = 0)out vec4 color;
 
 in vec2 v_TexCoord;
 
-//uniform vec4 u_Color;
 uniform sampler2D u_Texture;
 
 void main()
