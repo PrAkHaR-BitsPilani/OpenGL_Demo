@@ -20,7 +20,7 @@ bool GLLogCall(const char* function , const char* fileName , int lineNo)
 
 void Renderer::clear() const
 {
-    GLCall(glClear(GL_COLOR_BUFFER_BIT));
+    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 }
 
 void Renderer::draw(const VertexArray& va , const IndexBuffer& ib , const Shader& sh) const
