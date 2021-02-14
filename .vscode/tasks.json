@@ -14,7 +14,8 @@
                 "-L./lib",
                 "src/glad.c",
                 "src/**.cpp", // for linking all the cpp files,
-                "src/external/stb_image/stb_image.cpp", // for external file
+                "src/external/stb_image/stb_image.cpp", // for external file,
+                "src/external/imgui/**.cpp",
                 "-o",
                 "output.exe",
                 "-lglfw3dll"
