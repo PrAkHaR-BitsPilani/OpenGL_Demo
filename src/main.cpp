@@ -8,6 +8,7 @@
 #include "VertexArray.h"
 #include "Shader.h"
 #include "Texture.h"
+#include "Camera.h"
 
 #include "external/glm/glm.hpp"
 #include "external/glm/gtc/matrix_transform.hpp"
@@ -22,23 +23,14 @@ void processInput(GLFWwindow *window);
 void mouseCallBack(GLFWwindow* window, double xpos, double ypos);
 void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset);
 
-// settings
+// window settings
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 900;
 
 // camera settings
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);  
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-const float cameraSpeed = 2.5f;
-
-// mouse settings
+Camera camera(glm::vec3(0.0f , 0.0f , 3.0f));
 float mouseLastX = SCR_WIDTH / 2.0;
 float mouseLastY = SCR_HEIGHT / 2.0;
-float yaw = -90.0f;
-float pitch = 0.0;
-float fov = 45.0;
-const float sensitivity = 0.1f;
 bool firstMouse = true;
 
 //frame timing
@@ -67,8 +59,8 @@ int main()
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     glfwSetInputMode(window , GLFW_CURSOR , GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window , mouseCallBack);
-    glfwSetScrollCallback(window , scrollCallBack);
+    glfwSetCursorPosCallback(window , mouseCallBack); // for mouse movements
+    glfwSetScrollCallback(window , scrollCallBack); // for mouse scrolls
     // glad: load all OpenGL function pointers
     // ---------------------------------------
 
@@ -142,10 +134,10 @@ int main()
     VAO[0] -> addBuffer(*VBO[0] , layout);
     IBO[0] = new IndexBuffer(indices.data() , indices.size());
 
-    glBindVertexArray(0);
+    GLCall(glBindVertexArray(0));
 
-    glm::mat4 proj = glm::perspective(glm::radians(fov) , 1600.0f/900.0f , 0.1f , 100.0f);
-    glm::mat4 view = glm::lookAt(cameraPos , cameraPos + cameraFront , cameraUp);
+    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+    glm::mat4 view = camera.getViewMatrix();
 
     Shader* shader = new Shader("res/shaders/Basic.shader");
     shader -> bind();
@@ -169,7 +161,11 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    // render loop
+    glm::mat4 modelA = glm::mat4(1.0f);
+    glm::mat4 modelB = glm::mat4(1.0f); modelB = glm::translate(modelB , glm::vec3(-2.5f , 0.0f , -2.0f));
+    glm::mat4 modelC = glm::mat4(1.0f); modelC = glm::translate(modelC , glm::vec3(1.5f , 0.0f , 0)); modelC = glm::scale(modelC , glm::vec3(0.5f));
+
+    // render loop  
     // -----------
     while (!glfwWindowShouldClose(window))
     {   
@@ -177,22 +173,20 @@ int main()
         processInput(window);
 
         glClearColor(0.4f, 0.4f, 0.4f,1.0f);
-        renderer.clear();
+        renderer.clear();   
 
-        VAO[0] -> bind();   
-
-        proj = glm::perspective(glm::radians(fov) , 1600.0f/900.0f , 0.1f , 100.0f);
-        view = glm::lookAt(cameraPos , cameraPos + cameraFront , cameraUp);
+        proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+        view = camera.getViewMatrix();
 
         // IMGUI NEW FRAME
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        VAO[0] -> bind();
+
         {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            glm::mat4 MVP = proj * view * model;
+            glm::mat4 MVP = proj * view * glm::rotate(modelA, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
             shader -> setUniformMat4f("u_MVP" , MVP);
             black -> bind();
             GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
@@ -200,10 +194,7 @@ int main()
         }
 
         {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model , glm::vec3(-2.5f , 0 , -2.0f));
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            glm::mat4 MVP = proj * view * model;
+            glm::mat4 MVP = proj * view * glm::rotate(modelB, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
             shader -> setUniformMat4f("u_MVP" , MVP);
             red -> bind();
             GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
@@ -211,20 +202,17 @@ int main()
         }
 
         {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model , glm::vec3(1.5f , 0 , 0));
-            model = glm::scale(model , glm::vec3(0.5f));
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            glm::mat4 MVP = proj * view * model;
+            glm::mat4 MVP = proj * view * glm::rotate(modelC, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
             shader -> setUniformMat4f("u_MVP" , MVP);
             GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
             //renderer.draw(*VAO[1] , *IBO[0] , *shader);
         }
 
         {
-            ImGui::ShowDemoWindow();
-            //ImGui::SliderFloat2("Camera" , &camera_translate[0] , -2.0f , 2.0f);
+            //ImGui::ShowDemoWindow();
+            ImGui::Begin("debug");
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
         }
 
 
@@ -252,22 +240,21 @@ void processInput(GLFWwindow *window)
 
     // set camera speed acc to frame refresh rate
     deltaTime = glfwGetTime() - deltaTime;
-    float speed = cameraSpeed * deltaTime;
-    deltaTime = glfwGetTime(); 
+    float currentTime = glfwGetTime(); 
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += speed * cameraFront;
+        camera.processKeyboardInput(camera_movements::FORWARD , deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= speed * cameraFront;
+        camera.processKeyboardInput(camera_movements::BACKWARD , deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * speed;
+        camera.processKeyboardInput(camera_movements::LEFT , deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * speed;
+        camera.processKeyboardInput(camera_movements::RIGHT , deltaTime);
+    deltaTime = currentTime;
 }
 
 void mouseCallBack(GLFWwindow* window , double xpos , double ypos)
 {
-
     if (firstMouse)
     {
         mouseLastX = xpos;
@@ -279,27 +266,10 @@ void mouseCallBack(GLFWwindow* window , double xpos , double ypos)
     float y_offset = mouseLastY - ypos;
     mouseLastX = xpos;
     mouseLastY = ypos;
-    x_offset *= sensitivity;
-    y_offset *= sensitivity;
-
-    yaw += x_offset;
-    pitch += y_offset;
-
-    if(pitch > 89.0f)
-        pitch =  89.0f;
-    if(pitch < -89.0f)
-        pitch = -89.0f;
-
-    cameraFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront.y = sin(glm::radians(pitch));
-    cameraFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    camera.processMouseMovement(x_offset , y_offset);
 }
 
-void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset)
+void scrollCallBack(GLFWwindow* window, double x_offset, double y_offset)
 {
-    fov -= (float)yoffset;
-    if (fov < 1.0f)
-        fov = 1.0f;
-    if (fov > 45.0f)
-        fov = 45.0f; 
+    camera.processMouseScroll(y_offset);
 }
