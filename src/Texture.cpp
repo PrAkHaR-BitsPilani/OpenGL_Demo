@@ -8,7 +8,7 @@ Texture::Texture(const std::string& filePath)
 
        GLCall(glGenTextures(1 , &m_RendererID));
 
-       bind();
+       GLCall(glBindTexture(GL_TEXTURE_2D , m_RendererID));
 
         // TEXTURE FILTERING
        GLCall(glTexParameteri(GL_TEXTURE_2D , GL_TEXTURE_MIN_FILTER , GL_LINEAR)); // try with GL_NEAREST also
