@@ -1,0 +1,140 @@
+ vector<float> positions = {
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+    };
+
+    VertexArray* VAO[1];
+    VertexBuffer* VBO[1];
+
+    VertexBufferLayout layout;
+    layout.push<float>(3);
+    layout.push<float>(2);
+
+    VAO[0] = new VertexArray();
+    VBO[0] = new VertexBuffer(positions.data()  , positions.size() * sizeof(float));
+    VAO[0] -> addBuffer(*VBO[0] , layout);
+
+    GLCall(glBindVertexArray(0));
+
+    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+    glm::mat4 view = camera.getViewMatrix();
+
+    Shader* shader = new Shader("res/shaders/examples.shader");
+    shader -> bind();
+    shader -> setUniform1i("u_Texture" , 0);
+
+    Texture* black = new Texture("res/textures/images/black.jpg");
+    Texture* red = new Texture("res/textures/images/red.jpg");
+
+    //Setup IMGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsClassic();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);    
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+    glm::mat4 modelA = glm::mat4(1.0f);
+    glm::mat4 modelB = glm::mat4(1.0f); modelB = glm::translate(modelB , glm::vec3(-2.5f , 0.0f , -2.0f));
+    glm::mat4 modelC = glm::mat4(1.0f); modelC = glm::translate(modelC , glm::vec3(1.5f , 0.0f , 0)); modelC = glm::scale(modelC , glm::vec3(0.5f));
+
+    // render loop  
+    // -----------
+    while (!glfwWindowShouldClose(window))
+    {   
+
+        processInput(window);
+
+        glClearColor(0.0f, 0.0f, 0.0f,1.0f);
+        GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)); 
+
+        proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+        view = camera.getViewMatrix();
+
+        // IMGUI NEW FRAME
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        VAO[0] -> bind();
+        shader -> bind();
+
+        {
+            glm::mat4 MVP = proj * view * glm::rotate(modelA, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
+            shader -> setUniformMat4f("u_MVP" , MVP);
+            black -> bind();
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            //renderer.draw(*VAO[0] , *IBO[0] , *shader);
+        }
+
+        {
+            glm::mat4 MVP = proj * view * glm::rotate(modelB, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
+            shader -> setUniformMat4f("u_MVP" , MVP);
+            red -> bind();
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            //renderer.draw(*VAO[0] , *IBO[0] , *shader);
+        }
+
+        {
+            glm::mat4 MVP = proj * view * glm::rotate(modelC, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
+            shader -> setUniformMat4f("u_MVP" , MVP);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            //renderer.draw(*VAO[1] , *IBO[0] , *shader);
+        }
+
+        {
+            //ImGui::ShowDemoWindow();
+            ImGui::Begin("debug");
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+        }
+
+        
+
+
+        //Render IMGUI
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
