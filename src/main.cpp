@@ -72,85 +72,33 @@ int main()
 
     cout << glGetString(GL_VERSION) << "\n";
 
-    vector<float> positions = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
-
-    vector<unsigned int> indices= {
-        0,1,2,
-        2,3,0
-    };
-
-    VertexArray* VAO[1];
-    VertexBuffer* VBO[1];
-    IndexBuffer* IBO[1];
-
-    VertexBufferLayout layout;
-    layout.push<float>(3);
-    layout.push<float>(2);
-
-    VAO[0] = new VertexArray();
-    VBO[0] = new VertexBuffer(positions.data()  , positions.size() * sizeof(float));
-    VAO[0] -> addBuffer(*VBO[0] , layout);
-    IBO[0] = new IndexBuffer(indices.data() , indices.size());
-
-    GLCall(glBindVertexArray(0));
-
     glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
     glm::mat4 view = camera.getViewMatrix();
 
     Shader* shader = new Shader("res/shaders/Basic.shader");
-    shader -> bind();
-    shader -> setUniform1i("u_Texture" , 0);
+    VertexArray* sampleVAO = new VertexArray();
+    VertexBufferLayout* sampleLayout = new VertexBufferLayout();
+    sampleLayout -> push<float>(2);
+    vector<float> pixels;
+    int temp = 1000;
+    float d = 1.0 / temp;
+    float y = 1.0f;
+    for(int i = 0 ; i < temp ; i++)
+    {
+        pixels.emplace_back(0.0f);
+        pixels.emplace_back(y);
+        y += d;
+    }
+    vector<unsigned int> samplePos = {0,1,2,3};
+    VertexBuffer* sampleVBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
+    sampleVAO -> addBuffer(*sampleVBO , *sampleLayout);
+    //IndexBuffer* sampleIBO = new IndexBuffer(samplePos.data() , samplePos.size());
+    GLCall(glBindVertexArray(0));
 
-    Texture* black = new Texture("res/textures/images/black.jpg");
-    Texture* red = new Texture("res/textures/images/red.jpg");
-    
     Renderer renderer;
 
     // GLCall(glEnable(GL_BLEND));
     // GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-
     GLCall(glEnable(GL_DEPTH_TEST));
 
     //Setup IMGUI
@@ -161,9 +109,6 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    glm::mat4 modelA = glm::mat4(1.0f);
-    glm::mat4 modelB = glm::mat4(1.0f); modelB = glm::translate(modelB , glm::vec3(-2.5f , 0.0f , -2.0f));
-    glm::mat4 modelC = glm::mat4(1.0f); modelC = glm::translate(modelC , glm::vec3(1.5f , 0.0f , 0)); modelC = glm::scale(modelC , glm::vec3(0.5f));
 
     // render loop  
     // -----------
@@ -172,7 +117,7 @@ int main()
 
         processInput(window);
 
-        glClearColor(0.4f, 0.4f, 0.4f,1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f,1.0f);
         renderer.clear();   
 
         proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
@@ -183,29 +128,11 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        VAO[0] -> bind();
-
         {
-            glm::mat4 MVP = proj * view * glm::rotate(modelA, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            shader -> setUniformMat4f("u_MVP" , MVP);
-            black -> bind();
-            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
-            //renderer.draw(*VAO[0] , *IBO[0] , *shader);
-        }
-
-        {
-            glm::mat4 MVP = proj * view * glm::rotate(modelB, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            shader -> setUniformMat4f("u_MVP" , MVP);
-            red -> bind();
-            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
-            //renderer.draw(*VAO[0] , *IBO[0] , *shader);
-        }
-
-        {
-            glm::mat4 MVP = proj * view * glm::rotate(modelC, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-            shader -> setUniformMat4f("u_MVP" , MVP);
-            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
-            //renderer.draw(*VAO[1] , *IBO[0] , *shader);
+            sampleVAO -> bind();
+            shader -> bind();
+            shader -> setUniformMat4f("u_MVP" , proj * view);
+            GLCall(glDrawArrays(GL_POINTS , 0 , pixels.size()));
         }
 
         {
@@ -214,7 +141,6 @@ int main()
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
-
 
         //Render IMGUI
         ImGui::Render();
