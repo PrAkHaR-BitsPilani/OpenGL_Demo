@@ -9,6 +9,7 @@
 #include "Shader.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "Bresenham.h"
 
 #include "external/glm/glm.hpp"
 #include "external/glm/gtc/matrix_transform.hpp"
@@ -28,7 +29,7 @@ const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 900;
 
 // camera settings
-Camera camera(glm::vec3(0.0f , 0.0f , 3.0f));
+Camera camera(glm::vec3(0.0f , 0.0f , 6.0f));
 float mouseLastX = SCR_WIDTH / 2.0;
 float mouseLastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -78,21 +79,19 @@ int main()
     Shader* shader = new Shader("res/shaders/Basic.shader");
     VertexArray* sampleVAO = new VertexArray();
     VertexBufferLayout* sampleLayout = new VertexBufferLayout();
-    sampleLayout -> push<float>(2);
-    vector<float> pixels;
-    int temp = 1000;
-    float d = 1.0 / temp;
-    float y = 1.0f;
-    for(int i = 0 ; i < temp ; i++)
+    sampleLayout -> push<float>(3);
+    vector<float>pixels = Bresenham::drawAxis(10);
+    vector<float> temp;
+    for(int x = -2 ; x <= 2 ; x++)
     {
-        pixels.emplace_back(0.0f);
-        pixels.emplace_back(y);
-        y += d;
+        for(int y  = -2 ; y <= 2 ;y++)
+        {
+            temp = Bresenham::drawLine({x,y} , {x+y , y-x});
+            pixels.insert(pixels.end() , temp.begin() , temp.end());
+        }
     }
-    vector<unsigned int> samplePos = {0,1,2,3};
     VertexBuffer* sampleVBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
     sampleVAO -> addBuffer(*sampleVBO , *sampleLayout);
-    //IndexBuffer* sampleIBO = new IndexBuffer(samplePos.data() , samplePos.size());
     GLCall(glBindVertexArray(0));
 
     Renderer renderer;
@@ -109,12 +108,10 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
     ImGui_ImplOpenGL3_Init("#version 330");
 
-
     // render loop  
     // -----------
     while (!glfwWindowShouldClose(window))
     {   
-
         processInput(window);
 
         glClearColor(0.0f, 0.0f, 0.0f,1.0f);
@@ -128,12 +125,9 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        {
-            sampleVAO -> bind();
-            shader -> bind();
-            shader -> setUniformMat4f("u_MVP" , proj * view);
-            GLCall(glDrawArrays(GL_POINTS , 0 , pixels.size()));
-        }
+        shader -> bind();
+        shader -> setUniformMat4f("u_MVP" , proj * view);
+        renderer.drawPoints(*sampleVAO , *shader , pixels.size());
 
         {
             //ImGui::ShowDemoWindow();
