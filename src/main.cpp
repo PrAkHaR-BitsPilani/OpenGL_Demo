@@ -86,7 +86,7 @@ int main()
     {
         for(int y  = -2 ; y <= 2 ;y++)
         {
-            temp = Bresenham::drawLine({x,y} , {x+y , y-x});
+            temp = Bresenham::drawLine(glm::vec3(x,y,1.0f) , glm::vec3(2*x,2*y,1.0f));
             pixels.insert(pixels.end() , temp.begin() , temp.end());
         }
     }

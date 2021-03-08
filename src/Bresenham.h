@@ -1,5 +1,4 @@
 #pragma once
-#include <utility>
 #include <vector>
 #include "external/glm/glm.hpp"
 
@@ -10,6 +9,6 @@
 namespace Bresenham
 {
     std::vector<float> drawAxis(int max);
-    std::vector<float> drawLine(std::pair<int,int>p1 , std::pair<int,int> p2);
+    std::vector<float> drawLine(glm::vec3 p1 , glm::vec3 p2);
     std::vector<float> drawCircle(glm::vec3 centre , int radius);
 }

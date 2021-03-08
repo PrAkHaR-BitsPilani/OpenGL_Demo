@@ -3,35 +3,42 @@
 
 void addCirclePoints(std::vector<float>& ans , float x , float y , float z , glm::vec3 centre);
 
-std::vector<float> Bresenham::drawLine(std::pair<int,int>p1 , std::pair<int,int> p2)
+std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2)
 {  
+
+    assert(p1.z == p2.z);
+
     std::vector<float> ans;
     bool swapFlag = false;
-    if(p1.first > p2.first)
-            swap(p1 , p2) , swapFlag = true;
-    int delX = p2.first - p1.first;
-    int delY = p2.second - p1.second;
+    if(p1.x > p2.x){
+        glm::vec3 temp = p1;
+        p1 = p2;
+        p2 = temp;
+        swapFlag = true;
+    }
+    int delX = p2.x - p1.x;
+    int delY = p2.y - p1.y;
     int a = delY;
     int b = -delX;
     if(abs(delY) <= abs(delX))
     {
         
-        int y_dir = (p1.second <= p2.second) ? 1 : -1;
+        int y_dir = (p1.y <= p2.y) ? 1 : -1;
         b *= y_dir;
 
         int d = 2*a + b;
         int incE = 2*a;
         int incNE = 2*(a+b);
 
-        float x = p1.first;
-        float y = p1.second;
-        float z = 0.0f;
+        float x = p1.x;
+        float y = p1.y;
+        float z = p1.z;
 
         ans.emplace_back(x);
         ans.emplace_back(y);
         ans.emplace_back(z);
 
-        while(x <= p2.first)
+        while(x <= p2.x)
         {
             if((y_dir * d) <= 0){
                 d += incE;
@@ -48,22 +55,22 @@ std::vector<float> Bresenham::drawLine(std::pair<int,int>p1 , std::pair<int,int>
     }
     else
     {
-        int y_dir = p1.second <= p2.second ? 1 : -1;
+        int y_dir = p1.y <= p2.y ? 1 : -1;
         b *= y_dir;
 
         int d = a + 2*b;
         int incN = 2*b;
         int incNE = 2*(a+b);
 
-        float x = p1.first;
-        float y = p1.second;
-        float z = 0.0f;
+        float x = p1.x;
+        float y = p1.y;
+        float z = p1.z;
 
         ans.emplace_back(x);
         ans.emplace_back(y);
         ans.emplace_back(z);
 
-        while((y_dir * y) <= (y_dir * p2.second))
+        while((y_dir * y) <= (y_dir * p2.y))
         {
             if((y_dir * d) > 0){
                 d += incN;
