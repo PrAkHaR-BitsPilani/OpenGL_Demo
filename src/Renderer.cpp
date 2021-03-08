@@ -30,3 +30,10 @@ void Renderer::draw(const VertexArray& va , const IndexBuffer& ib , const Shader
     sh.bind();
     GLCall(glDrawElements(GL_TRIANGLES, ib.getCount() , GL_UNSIGNED_INT , nullptr));
 }
+
+void Renderer::drawPoints(const VertexArray& va , const Shader& sh , int count)const
+{
+    va.bind();
+    sh.bind();
+    GLCall(glDrawArrays(GL_POINTS , 0 , count));
+}

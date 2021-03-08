@@ -19,4 +19,5 @@ class Renderer
     public:
         void clear() const;
         void draw(const VertexArray& va , const IndexBuffer& ib , const Shader& sh) const;
+        void drawPoints(const VertexArray& va , const Shader& sh , int count)const;
 };
