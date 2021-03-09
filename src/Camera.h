@@ -43,6 +43,8 @@ public:
     void processKeyboardInput(camera_movements direction , float deltatime);
     void processMouseMovement(float x_offset , float y_offset , bool constrainedPitch = true);
     void processMouseScroll(float y_offset);
+    void setSpeed(float speed);
+    void recenter(glm::vec3 position);
     float getFOV();
 
 };

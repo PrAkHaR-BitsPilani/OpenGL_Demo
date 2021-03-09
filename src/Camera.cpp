@@ -70,6 +70,21 @@ float Camera::getFOV()
     return m_fov;
 }
 
+void Camera::setSpeed(float speed)
+{
+    m_cameraSpeed = speed;
+}
+
+void Camera::recenter(glm::vec3 position)
+{
+    m_cameraPos = position;
+    m_cameraFront = glm::vec3(0.0f , 0.0f , -1.0f);
+    m_worldUp = glm::vec3(0.0f , 1.0f , 0.0f);
+    m_yaw = YAW;
+    m_pitch = PITCH;
+    updateCameraVectors();
+}
+
 void Camera::updateCameraVectors()
 {
     m_cameraFront.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
