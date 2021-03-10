@@ -55,6 +55,8 @@ float camSpeed = 2.5f;
 bool normalize = true;
 int mode = 0;
 
+int polyline_count = 10;
+glm::vec3 polyline_start(1.0f , 1.0f , 0.0f);
 int x_range = 5;
 int y_range = 5;
 vector<float> lineColor = {0.96f , 0.91f , 0.11f};
@@ -147,6 +149,7 @@ int main()
         renderer.drawPoints(*sampleVAO , *shader , pixels.size());
 
         // IMGUI
+        ImGui::ShowDemoWindow();
         showDebugWindow();
         ImGui::NewLine();
         ImGui::SameLine(200);
@@ -196,6 +199,7 @@ void processInput(GLFWwindow *window)
 
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     {
+        cout << "E pressed !!\n";
         if(locked)
         {
             firstMouse = true;
@@ -282,6 +286,21 @@ void showDebugWindow()
     ImGui::ColorEdit3("Line Color" , lineColor.data());
     ImGui::ColorEdit3("Circle Color" , circleColor.data());
 
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("Polyline count:");
+    ImGui::SameLine();
+    float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+    ImGui::PushButtonRepeat(true);
+    if (ImGui::ArrowButton("##left", ImGuiDir_Left)) { polyline_count--; polyline_count = max(0 , polyline_count); }
+    ImGui::SameLine(0.0f, spacing);
+    if (ImGui::ArrowButton("##right", ImGuiDir_Right)) { polyline_count++; }
+    ImGui::PopButtonRepeat();
+    ImGui::SameLine();
+    ImGui::Text("%d", polyline_count);
+
+    ImGui::DragFloat("Polyline x0" , &polyline_start.x,0.5f,0,axis_limit);
+    ImGui::DragFloat("Polyline y0" , &polyline_start.y,0.5f,0,axis_limit);
+
 }
 
 void updatePixelData()
@@ -291,38 +310,73 @@ void updatePixelData()
 
     pixels = Bresenham::drawAxis(axis_limit , axisColor);
 
-    for(int x = -x_range ; x <= x_range ; x++)
+    switch(mode)
     {
-        for(int y  = -y_range ; y <= y_range ;y++)
-        {
-            glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
-            if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-            glm::vec3 endPoint = vector + glm::vec3(x,y,z);
-            glm::vec3 arrowDir(0.0f);
-            switch(mode)
+        case 0:
+            for(int x = -x_range ; x <= x_range ; x++)
             {
-                case 0:
+                for(int y  = -y_range ; y <= y_range ;y++)
+                {
+                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
+                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);
                     temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
                     arrowPixels = getArrowPixels(endPoint , vector , lineColor);
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                break;
-                case 1:
+                    pixels.insert(pixels.end() , temp.begin() , temp.end());
+                }
+            }
+        break;
+        case 1:
+            for(int x = -x_range ; x <= x_range ; x++)
+            {
+                for(int y  = -y_range ; y <= y_range ;y++)
+                {
+                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
                     temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
-                break;
-                case 2:
+                    pixels.insert(pixels.end() , temp.begin() , temp.end());
+                }
+            }
+        break;
+        case 2:
+            for(int x = -x_range ; x <= x_range ; x++)
+            {
+                for(int y  = -y_range ; y <= y_range ;y++)
+                {
+                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
+                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);
                     temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
                     arrowPixels = getArrowPixels(endPoint , vector , lineColor);
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                     temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
-                break;
-                case 3:
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , lineColor);
-                break;
+                    pixels.insert(pixels.end() , temp.begin() , temp.end());
+                }
             }
-            pixels.insert(pixels.end() , temp.begin() , temp.end());
-        }
+        break;
+        case 3:
+            float x = polyline_start.x;
+            float y = polyline_start.y;
+            float z = polyline_start.z;
+            for(int i = 0 ; i < polyline_count ; i++)
+            {
+                glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
+                glm::vec3 endPoint = vector + glm::vec3(x,y,z);
+                temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
+                arrowPixels = getArrowPixels(endPoint , vector , lineColor);
+                temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                pixels.insert(pixels.end() , temp.begin() , temp.end());
+                x = endPoint.x;
+                y = endPoint.y;
+                z = endPoint.z;
+            }
+        break;
     }
+
+    
 }
 
 vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color)
