@@ -23,6 +23,8 @@ using namespace std;
 void processInput(GLFWwindow *window);
 void mouseCallBack(GLFWwindow* window, double xpos, double ypos);
 void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset);
+void updatePixelData();
+void showDebugWindow();
 
 // window settings
 const unsigned int SCR_WIDTH = 1600;
@@ -39,6 +41,24 @@ bool locked = true;
 //frame timing
 float deltaTime = 0.0f;
 
+//DEBUGGING VARIABLES
+vector<float>pixels;
+glm::mat4 rotA(1.0f);
+glm::mat4 rotC(1.0f);
+int axis_limit = 10;
+float axisColor[3] = {1.0f , 1.0f ,1.0f};
+float bgColor[4] = {0.25f , 0.25f , 0.25f,1.0f};
+
+float camSpeed = 2.5f;
+
+bool normalize = true;
+int mode = 0;
+
+int x_range = 5;
+int y_range = 5;
+float lineColor[3] = {0.96f , 0.91f , 0.11f};
+float circleColor[3] = {0.11f , 0.91f , 0.96f};
+float z = 0.0f;
 
 int main()
 {
@@ -80,8 +100,6 @@ int main()
     VertexBufferLayout* sampleLayout = new VertexBufferLayout();
     sampleLayout -> push<float>(3);
     sampleLayout -> push<float>(3);
-    vector<float>pixels;
-    vector<float>temp;
     VertexBuffer* sampleVBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
     sampleVAO -> addBuffer(*sampleVBO , *sampleLayout);
 
@@ -97,23 +115,10 @@ int main()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsClassic();
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL3_Init("#version 330");  
 
-    //DEBUGGING VARIABLES
-    static int axis_limit = 10;
-    static float axisColor[3] = {1.0f , 1.0f ,1.0f};
-    static float bgColor[4] = {0.25f , 0.25f , 0.25f,1.0f};
-
-    static float camSpeed = 2.5f;
-
-    static bool normalize = true;
-    static int mode = 0;
-
-    static int x_range = 5;
-    static int y_range = 5;
-    static float lineColor[3] = {0.96f , 0.91f , 0.11f};
-    static float circleColor[3] = {0.11f , 0.91f , 0.96f};
-    float z = 0.0f;
+    rotA = glm::rotate(rotA , glm::radians(-30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
+    rotC = glm::rotate(rotC , glm::radians(30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
 
     shader -> bind();
 
@@ -141,84 +146,12 @@ int main()
         renderer.drawPoints(*sampleVAO , *shader , pixels.size());
 
         // IMGUI
-        {
-            ImGui::Text("prakhar says hello. #6969");
-            ImGui::Spacing();
-            if(ImGui::CollapsingHeader("Help"))
-            {
-                
-            }
-            if(ImGui::CollapsingHeader("Configuration"))
-            {
-                if(ImGui::TreeNode("Grid"))
-                {
-                    
-                    ImGui::DragInt("Axis limit" , &axis_limit , 0.5f , 0 , 100 , "%d");
-                    ImGui::ColorEdit3("Axis Color" , axisColor);
-                    ImGui::ColorEdit4("Background Color" , bgColor);
-                    ImGui::TreePop();
-                }
-                if(ImGui::TreeNode("Camera"))
-                {
-                    ImGui::DragFloat("Camera Speed" , &camSpeed , 0.25f , 1.0f , 5.0f);
-                    ImGui::NewLine();
-                    ImGui::SameLine(200);
-                    if(ImGui::Button("Recenter Camera"))
-                        camera.recenter(cameraPos);
-                    ImGui::TreePop();
-                }
-            }
-            ImGui::Spacing();
-            ImGui::ShowStyleSelector("Theme");
-            
-            ImGui::Checkbox("Normalize" , &normalize);
-            
-            
-            ImGui::RadioButton("Line", &mode, 0); ImGui::SameLine();
-            ImGui::RadioButton("Circle", &mode, 1); ImGui::SameLine();
-            ImGui::RadioButton("Line+Circle", &mode, 2); ImGui::SameLine();
-            ImGui::RadioButton("PolyLine", &mode,    3);
-
-            
-
-            ImGui::DragInt("X Range" , &x_range , 1.0f , 0 , 20 , "%d");
-            ImGui::DragInt("Y Range" , &y_range , 1.0f , 0 , 20 , "%d");
-
-            
-            ImGui::ColorEdit3("Line Color" , lineColor);
-            ImGui::ColorEdit3("Circle Color" , circleColor);
-        }
+        showDebugWindow();
         ImGui::NewLine();
         ImGui::SameLine(200);
         if(ImGui::Button("Apply Changes"))
         {
-            pixels = Bresenham::drawAxis(axis_limit , glm::vec3(axisColor[0] , axisColor[1] , axisColor[2]));
-            for(int x = -x_range ; x <= x_range ; x++)
-            {
-                for(int y  = -y_range ; y <= y_range ;y++)
-                {
-                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
-                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    switch(mode)
-                    {
-                        case 0:
-                            temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                        break;
-                        case 1:
-                            temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
-                        break;
-                        case 2:
-                            temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                            pixels.insert(pixels.end() , temp.begin() , temp.end());
-                            temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
-                        break;
-                        case 3:
-                            temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                        break;
-                    }
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                }
-            }
+            updatePixelData();
             sampleVBO->updateData(pixels.data() , pixels.size() * sizeof(float));
         }
 
@@ -300,4 +233,101 @@ void mouseCallBack(GLFWwindow* window , double xpos , double ypos)
 void scrollCallBack(GLFWwindow* window, double x_offset, double y_offset)
 {
     camera.processMouseScroll(y_offset);
+}
+
+void showDebugWindow()
+{
+    ImGui::Text("prakhar says hello. #6969");
+    ImGui::Spacing();
+    if(ImGui::CollapsingHeader("Help"))
+    {
+        
+    }
+    if(ImGui::CollapsingHeader("Configuration"))
+    {
+        if(ImGui::TreeNode("Grid"))
+        {
+            
+            ImGui::DragInt("Axis limit" , &axis_limit , 0.5f , 0 , 100 , "%d");
+            ImGui::ColorEdit3("Axis Color" , axisColor);
+            ImGui::ColorEdit4("Background Color" , bgColor);
+            ImGui::TreePop();
+        }
+        if(ImGui::TreeNode("Camera"))
+        {
+            ImGui::DragFloat("Camera Speed" , &camSpeed , 0.25f , 1.0f , 5.0f);
+            ImGui::NewLine();
+            ImGui::SameLine(200);
+            if(ImGui::Button("Recenter Camera"))
+                camera.recenter(cameraPos);
+            ImGui::TreePop();
+        }
+    }
+    ImGui::Spacing();
+    ImGui::ShowStyleSelector("Theme");
+    ImGui::Spacing();
+    
+    ImGui::Checkbox("Normalize" , &normalize);
+    
+    
+    ImGui::RadioButton("Line", &mode, 0); ImGui::SameLine();
+    ImGui::RadioButton("Circle", &mode, 1); ImGui::SameLine();
+    ImGui::RadioButton("Line+Circle", &mode, 2); ImGui::SameLine();
+    ImGui::RadioButton("PolyLine", &mode,    3);
+
+    ImGui::DragInt("X Range" , &x_range , 1.0f , 0 , 20 , "%d");
+    ImGui::DragInt("Y Range" , &y_range , 1.0f , 0 , 20 , "%d");
+    
+    ImGui::ColorEdit3("Line Color" , lineColor);
+    ImGui::ColorEdit3("Circle Color" , circleColor);
+
+}
+
+void updatePixelData()
+{
+    vector<float>temp;
+    vector<float>arrowPixels;
+
+    pixels = Bresenham::drawAxis(axis_limit , glm::vec3(axisColor[0] , axisColor[1] , axisColor[2]));
+
+    for(int x = -x_range ; x <= x_range ; x++)
+    {
+        for(int y  = -y_range ; y <= y_range ;y++)
+        {
+            glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+            if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
+            glm::vec3 endPoint = vector + glm::vec3(x,y,z);
+            glm::vec3 arrowDir(0.0f);
+            switch(mode)
+            {
+                case 0:
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    arrowDir = glm::vec3(rotA * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
+                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    arrowDir = glm::vec3(rotC * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
+                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                break;
+                case 1:
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
+                break;
+                case 2:
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    arrowDir = glm::vec3(rotA * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
+                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    arrowDir = glm::vec3(rotC * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
+                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    pixels.insert(pixels.end() , temp.begin() , temp.end());
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
+                break;
+                case 3:
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                break;
+            }
+            pixels.insert(pixels.end() , temp.begin() , temp.end());
+        }
+    }
 }
