@@ -149,7 +149,6 @@ int main()
         renderer.drawPoints(*sampleVAO , *shader , pixels.size());
 
         // IMGUI
-        ImGui::ShowDemoWindow();
         showDebugWindow();
         ImGui::NewLine();
         ImGui::SameLine(200);
