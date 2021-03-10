@@ -1,7 +1,7 @@
 #include "Bresenham.h"
 #include <iostream>
 
-void addCirclePoints(std::vector<float>& ans , float x , float y , float z , glm::vec3 centre , glm::vec3 color);
+void addCirclePoints(std::vector<float>& ans , float x , float y , float z , glm::vec3 centre , std::vector<float> color);
 
 float abs(float f)
 {
@@ -9,7 +9,7 @@ float abs(float f)
     return f;
 }
 
-std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , glm::vec3 color)
+std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , std::vector<float> color)
 {  
     std::vector<float> ans;
 
@@ -37,7 +37,7 @@ std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , glm::vec3 c
         float y = p1.y;
         float z = p1.z;
 
-        ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+        ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
 
         while((x_dir * x) <= (x_dir * p2.x))
         {
@@ -49,7 +49,7 @@ std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , glm::vec3 c
             }
             x += x_dir * delta;
 
-            ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+            ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
         }
     }
     else
@@ -71,7 +71,7 @@ std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , glm::vec3 c
         float y = p1.y;
         float z = p1.z;
 
-        ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+        ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
 
         while((y_dir * y) <= (y_dir * p2.y))
         {
@@ -83,13 +83,13 @@ std::vector<float> Bresenham::drawLine(glm::vec3 p1 , glm::vec3 p2 , glm::vec3 c
             }
             y += y_dir * delta;
 
-            ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+            ans.emplace_back(x);ans.emplace_back(y);ans.emplace_back(z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
         }
     }
     return ans;
 }
 
-std::vector<float> Bresenham::drawCircle(glm::vec3 centre , float radius , glm::vec3 color)
+std::vector<float> Bresenham::drawCircle(glm::vec3 centre , float radius , std::vector<float>color)
 {
     std::vector<float> ans;
 
@@ -123,32 +123,32 @@ std::vector<float> Bresenham::drawCircle(glm::vec3 centre , float radius , glm::
     return ans;
 }
 
-std::vector<float> Bresenham::drawAxis(int max , glm::vec3 color)
+std::vector<float> Bresenham::drawAxis(int max , std::vector<float> color)
 {
     std::vector<float> ans;
     float x = 0.0f;
     while(x <= max)
     {
-        ans.emplace_back(x);ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-        ans.emplace_back(0.0f);ans.emplace_back(x);ans.emplace_back(0.0f);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-        ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(x);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-        ans.emplace_back(-x);ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-        ans.emplace_back(0.0f);ans.emplace_back(-x);ans.emplace_back(0.0f);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-        ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(-x);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+        ans.emplace_back(x);ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+        ans.emplace_back(0.0f);ans.emplace_back(x);ans.emplace_back(0.0f);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+        ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(x);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+        ans.emplace_back(-x);ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+        ans.emplace_back(0.0f);ans.emplace_back(-x);ans.emplace_back(0.0f);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+        ans.emplace_back(0.0f);ans.emplace_back(0.0f);ans.emplace_back(-x);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
         x += delta;
     }
     return ans;
 }
 
-void addCirclePoints(std::vector<float>& ans , float x , float y , float z , glm::vec3 centre , glm::vec3 color){
-    ans.emplace_back(centre.x + x);ans.emplace_back(centre.y + y);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans.emplace_back(centre.x + x);ans.emplace_back(centre.y + -y);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans. emplace_back(centre.x + -x);ans.emplace_back(centre.y + y);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans.emplace_back(centre.x + -x);ans.emplace_back(centre.y + -y);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+void addCirclePoints(std::vector<float>& ans , float x , float y , float z , glm::vec3 centre , std::vector<float> color){
+    ans.emplace_back(centre.x + x);ans.emplace_back(centre.y + y);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans.emplace_back(centre.x + x);ans.emplace_back(centre.y + -y);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans. emplace_back(centre.x + -x);ans.emplace_back(centre.y + y);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans.emplace_back(centre.x + -x);ans.emplace_back(centre.y + -y);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
 
-    ans.emplace_back(centre.x + y);ans.emplace_back(centre.y + x);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans.emplace_back(centre.x + y);ans.emplace_back(centre.y + -x);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans.emplace_back(centre.x + -y);ans.emplace_back(centre.y + x);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
-    ans.emplace_back(centre.x + -y);ans.emplace_back(centre.y + -x);ans.emplace_back(centre.z + z);ans.emplace_back(color.r);ans.emplace_back(color.g);ans.emplace_back(color.b);
+    ans.emplace_back(centre.x + y);ans.emplace_back(centre.y + x);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans.emplace_back(centre.x + y);ans.emplace_back(centre.y + -x);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans.emplace_back(centre.x + -y);ans.emplace_back(centre.y + x);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
+    ans.emplace_back(centre.x + -y);ans.emplace_back(centre.y + -x);ans.emplace_back(centre.z + z);ans.emplace_back(color[0]);ans.emplace_back(color[1]);ans.emplace_back(color[2]);
 
 }

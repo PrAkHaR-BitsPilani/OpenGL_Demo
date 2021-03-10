@@ -25,6 +25,7 @@ void mouseCallBack(GLFWwindow* window, double xpos, double ypos);
 void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset);
 void updatePixelData();
 void showDebugWindow();
+vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color);
 
 // window settings
 const unsigned int SCR_WIDTH = 1600;
@@ -46,8 +47,8 @@ vector<float>pixels;
 glm::mat4 rotA(1.0f);
 glm::mat4 rotC(1.0f);
 int axis_limit = 10;
-float axisColor[3] = {1.0f , 1.0f ,1.0f};
-float bgColor[4] = {0.25f , 0.25f , 0.25f,1.0f};
+vector<float> axisColor = {1.0f , 1.0f ,1.0f};
+vector<float> bgColor = {0.25f , 0.25f , 0.25f,1.0f};
 
 float camSpeed = 2.5f;
 
@@ -56,8 +57,8 @@ int mode = 0;
 
 int x_range = 5;
 int y_range = 5;
-float lineColor[3] = {0.96f , 0.91f , 0.11f};
-float circleColor[3] = {0.11f , 0.91f , 0.96f};
+vector<float> lineColor = {0.96f , 0.91f , 0.11f};
+vector<float> circleColor = {0.11f , 0.91f , 0.96f};
 float z = 0.0f;
 
 int main()
@@ -249,8 +250,8 @@ void showDebugWindow()
         {
             
             ImGui::DragInt("Axis limit" , &axis_limit , 0.5f , 0 , 100 , "%d");
-            ImGui::ColorEdit3("Axis Color" , axisColor);
-            ImGui::ColorEdit4("Background Color" , bgColor);
+            ImGui::ColorEdit3("Axis Color" , axisColor.data());
+            ImGui::ColorEdit4("Background Color" , bgColor.data());
             ImGui::TreePop();
         }
         if(ImGui::TreeNode("Camera"))
@@ -278,8 +279,8 @@ void showDebugWindow()
     ImGui::DragInt("X Range" , &x_range , 1.0f , 0 , 20 , "%d");
     ImGui::DragInt("Y Range" , &y_range , 1.0f , 0 , 20 , "%d");
     
-    ImGui::ColorEdit3("Line Color" , lineColor);
-    ImGui::ColorEdit3("Circle Color" , circleColor);
+    ImGui::ColorEdit3("Line Color" , lineColor.data());
+    ImGui::ColorEdit3("Circle Color" , circleColor.data());
 
 }
 
@@ -288,7 +289,7 @@ void updatePixelData()
     vector<float>temp;
     vector<float>arrowPixels;
 
-    pixels = Bresenham::drawAxis(axis_limit , glm::vec3(axisColor[0] , axisColor[1] , axisColor[2]));
+    pixels = Bresenham::drawAxis(axis_limit , axisColor);
 
     for(int x = -x_range ; x <= x_range ; x++)
     {
@@ -301,33 +302,37 @@ void updatePixelData()
             switch(mode)
             {
                 case 0:
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                    arrowDir = glm::vec3(rotA * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
-                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                    arrowDir = glm::vec3(rotC * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
-                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
+                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
                 break;
                 case 1:
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
                 break;
                 case 2:
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                    arrowDir = glm::vec3(rotA * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
-                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
-                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                    arrowDir = glm::vec3(rotC * glm::vec4(vector * -1.0f , 1.0f)) * 0.1f;
-                    arrowPixels = Bresenham::drawLine(endPoint , endPoint + arrowDir , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
+                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , glm::vec3(circleColor[0] , circleColor[1] , circleColor[2]));
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
                 break;
                 case 3:
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , glm::vec3(lineColor[0] , lineColor[1] , lineColor[2]));
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , vector + glm::vec3(x,y,z) , lineColor);
                 break;
             }
             pixels.insert(pixels.end() , temp.begin() , temp.end());
         }
     }
+}
+
+vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color)
+{
+    vector<float>arrow;
+    vector<float>temp;
+    glm::vec3 arrowDir = glm::vec3(rotA * glm::vec4(vec_dir * -1.0f, 1.0f)) * 0.1f;
+    arrow = Bresenham::drawLine(endPoint , endPoint + arrowDir ,color);
+    arrowDir = glm::vec3(rotC * glm::vec4(vec_dir * -1.0f , 1.0f)) * 0.1f;
+    temp = Bresenham::drawLine(endPoint , endPoint + arrowDir ,color);
+    arrow.insert(arrow.end() , temp.begin() , temp.end());
+    return arrow;
 }
