@@ -23,7 +23,7 @@ void Renderer::clear() const
     GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 }
 
-void Renderer::draw(const VertexArray& va , const IndexBuffer& ib , const Shader& sh) const
+void Renderer::drawTriangles(const VertexArray& va , const IndexBuffer& ib , const Shader& sh) const
 {
     va.bind();
     ib.bind();
