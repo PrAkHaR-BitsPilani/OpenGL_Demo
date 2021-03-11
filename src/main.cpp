@@ -23,9 +23,12 @@ using namespace std;
 void processInput(GLFWwindow *window);
 void mouseCallBack(GLFWwindow* window, double xpos, double ypos);
 void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset);
+
 void updatePixelData();
 void showDebugWindow();
 vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color);
+
+glm::vec3 getVector(float x , float y , float z);
 
 // window settings
 const unsigned int SCR_WIDTH = 1600;
@@ -95,17 +98,47 @@ int main()
 
     cout << glGetString(GL_VERSION) << "\n";
 
-    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+    /*
+        We create a perspective projective matrix
+        Field of view is returned from the camera.
+        Aspect ration is set to 16:9.
+        The near and far planes are set to be Z = 0.1f and Z = 100.0f
+    */
+    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , SCR_WIDTH*1.0f/SCR_HEIGHT , 0.1f , 100.0f);
+
+    /*
+        We get the view matrix from the camera.
+        This matrix corresponds to the inital state of the camera where it is placed at (0,0,6) facing at the origin.
+    */
     glm::mat4 view = camera.getViewMatrix();
 
     Shader* shader = new Shader("res/shaders/Basic.shader");
-    VertexArray* sampleVAO = new VertexArray();
-    VertexBufferLayout* sampleLayout = new VertexBufferLayout();
-    sampleLayout -> push<float>(3);
-    sampleLayout -> push<float>(3);
-    VertexBuffer* sampleVBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
-    sampleVAO -> addBuffer(*sampleVBO , *sampleLayout);
 
+    // We create a VertexArray object which will later be used to combine our buffer and our layout.
+    VertexArray* VAO = new VertexArray();
+
+    /*
+        The layout in which the data will be stored in pur buffer will be like this -
+        (posX , posY , posZ) , (colorR , colorG , colorB)
+        We specifiy this by first pushing 3 floats for position and then again push 3 floats for color.
+    */
+    VertexBufferLayout* Layout = new VertexBufferLayout();
+    Layout -> push<float>(3);
+    Layout -> push<float>(3);
+
+    /*
+    Here we initialize the VertexBuffer with an empty array.
+    This pixel array will change during runtime when the user makes some changes in the ImGUI and clicks on 'Apply Changes'.
+    */
+    VertexBuffer* VBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
+
+    // Our buffer is now linked to out VertexArray object.
+    VAO -> addBuffer(*VBO , *Layout);
+
+    /*
+        We create an instance of the Renderer class.
+        This will handle all our draw calls.
+    */
     Renderer renderer;
 
     // GLCall(glEnable(GL_BLEND));
@@ -120,9 +153,16 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
     ImGui_ImplOpenGL3_Init("#version 330");  
 
+    /*
+        We create two rotation matrices which will rotate a vector by 30deg about the Z axis.
+        rotA will rotate anti-clockwise.
+        rotC will rotate clockwise.
+        These matricis will be used later to create arroe heads for vector and axes.
+    */
     rotA = glm::rotate(rotA , glm::radians(-30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
     rotC = glm::rotate(rotC , glm::radians(30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
 
+    // We bind our shader here only because we are not changing the shader later.
     shader -> bind();
 
     // render loop  
@@ -131,31 +171,56 @@ int main()
     {   
         processInput(window);
 
+        // We set the bgColor
         GLCall(glClearColor(bgColor[0] , bgColor[1] , bgColor[2] , bgColor[3]));
         renderer.clear();   
 
-        proj = glm::perspective(glm::radians(camera.getFOV()) , 1600.0f/900.0f , 0.1f , 100.0f);
+        // Recalculating the projection matrix with the new FIELD OF VIEW.
+        proj = glm::perspective(glm::radians(camera.getFOV()) , SCR_WIDTH*1.0f/SCR_HEIGHT , 0.1f , 100.0f);
+
+        // setting the speed of the camera
         camera.setSpeed(camSpeed);
+
+        // getting the view matrix corresponding to the current state of the camera.
         view = camera.getViewMatrix();
+
+        // cout << "Projection matrix.......\n";
+        // glm::mat4 sample = proj * view;
+        // for(int i = 0 ; i < 4 ; i++)
+        // {
+        //     for(int j = 0 ; j < 4; j++)
+        //         printf("%.18f " , sample[i][j]);
+        //     cout << "\n";
+        // }
 
         // IMGUI NEW FRAME
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        /*
+            We set the MVP matrix in our shader.
+            In ouw case the Model (M) matrix is an identity matrix therefore there is no need to mention it.
+        */
         shader -> setUniformMat4f("u_MVP" , proj * view);
 
-        //RENDER
-        renderer.drawPoints(*sampleVAO , *shader , pixels.size());
+        // Make the draw call
+        renderer.drawPoints(*VAO , *shader , pixels.size());
 
-        // IMGUI
+        // We show our debug window here.
+        // This debug window is for Runtime Debugging where we can adjust various parameters and analyze the vector field.
         showDebugWindow();
         ImGui::NewLine();
         ImGui::SameLine(200);
         if(ImGui::Button("Apply Changes"))
         {
+            // We upadate the pixel data to what is set by the user.
             updatePixelData();
-            sampleVBO->updateData(pixels.data() , pixels.size() * sizeof(float));
+            /*
+                We know update the data inside our VertexBuffer.
+                NOTE : Updating the data inside our VertexBuffer does not unbinds the buffer nor does it require the bind function to be called again.
+            */
+            VBO->updateData(pixels.data() , pixels.size() * sizeof(float));
         }
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -177,6 +242,13 @@ int main()
     return 0;
 }
 
+/*
+    This is a event handler for keyboard inputs.
+    [WASD] is for camera movements.
+    Press M to LOCK/FREE mouse.
+    If mouse is in a locked state, the cursur becomes visible and only [WASD] is recorded. Changes in YAW and PITCH are ignored.
+    Pressing Esc terminates the application.
+*/
 void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -198,7 +270,6 @@ void processInput(GLFWwindow *window)
 
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     {
-        cout << "E pressed !!\n";
         if(locked)
         {
             firstMouse = true;
@@ -218,6 +289,12 @@ void processInput(GLFWwindow *window)
 
 }
 
+/*
+    This function handles changes in YAW and PITCH of the camera.
+    This function records the changes in the cursor position.
+    Moving mouse in the forward/backward direction changes the PITCH.
+    Moving mouse in the  left/right direction changes the YAW.
+*/
 void mouseCallBack(GLFWwindow* window , double xpos , double ypos)
 {
     if (firstMouse)
@@ -234,24 +311,32 @@ void mouseCallBack(GLFWwindow* window , double xpos , double ypos)
     camera.processMouseMovement(x_offset , y_offset);
 }
 
+/*
+    This function handles the ZOOM feature by keeping track of the scroll wheel movememnts.
+    Scrolling Up ZOOMS IN which is equivalent to DECREASING the FOV.
+    Scrolling Down ZOOMS OUT which is equivalent to INCREASING the FOV.
+*/
 void scrollCallBack(GLFWwindow* window, double x_offset, double y_offset)
 {
     camera.processMouseScroll(y_offset);
 }
 
+/*
+    Displays the ImGUI Debug Window.
+    The user can change some basic parameters of the application to see difference results.
+*/
 void showDebugWindow()
 {
     ImGui::Text("prakhar says hello. #6969");
     ImGui::Spacing();
     if(ImGui::CollapsingHeader("Help"))
     {
-        
+        ImGui::Text("Still Under Construction :/");
     }
     if(ImGui::CollapsingHeader("Configuration"))
     {
         if(ImGui::TreeNode("Grid"))
         {
-            
             ImGui::DragInt("Axis limit" , &axis_limit , 0.5f , 0 , 100 , "%d");
             ImGui::ColorEdit3("Axis Color" , axisColor.data());
             ImGui::ColorEdit4("Background Color" , bgColor.data());
@@ -302,72 +387,77 @@ void showDebugWindow()
 
 }
 
+/*
+    Updates the data which is to be rendered on the Screen.
+*/
 void updatePixelData()
 {
     vector<float>temp;
     vector<float>arrowPixels;
 
-    pixels = Bresenham::drawAxis(axis_limit , axisColor);
+    pixels = Bresenham::drawAxis(axis_limit , axisColor);           //return the coordinates for drawing the axes.
 
     switch(mode)
     {
-        case 0:
-            for(int x = -x_range ; x <= x_range ; x++)
+        case 0:                                                     // LINE ONLY MODE
+            for(int x = -x_range ; x <= x_range ; x++)              // x varies from -x_range to +x_range
             {
-                for(int y  = -y_range ; y <= y_range ;y++)
+                for(int y  = -y_range ; y <= y_range ;y++)          // y varies from -y_range to +Y_range
                 {
-                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    glm::vec3 vector = getVector(x,y,z);                                            // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
-                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);
+                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                 // The endpoint will be (x,y,z) + f(x,y,z)
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);            // we get the coordinates to represent the vector
+                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                    // we get the coordinates for the arrowHead
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                 }
             }
         break;
-        case 1:
+        case 1:                                                     // CIRCLE ONLY MODE
             for(int x = -x_range ; x <= x_range ; x++)
             {
                 for(int y  = -y_range ; y <= y_range ;y++)
                 {
-                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    glm::vec3 vector = getVector(x,y,z);                                                                                // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);      // we get the coordinates for the circle
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                 }
             }
         break;
-        case 2:
+        case 2:                                                     // LINE + CIRCLE MODE
             for(int x = -x_range ; x <= x_range ; x++)
             {
                 for(int y  = -y_range ; y <= y_range ;y++)
                 {
-                    glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                    glm::vec3 vector = getVector(x,y,z);                                                        // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
-                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);
+                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                             // The endpoint will be (x,y,z) + f(x,y,z)
+                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                        // we get the coordinates to represent the vector
+                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                                // we get the coordinates for the arrowHead
                     temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);
+                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);              // we get the coordinates for the circle
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                 }
             }
         break;
-        case 3:
-            float x = polyline_start.x;
-            float y = polyline_start.y;
-            float z = polyline_start.z;
-            for(int i = 0 ; i < polyline_count ; i++)
+        case 3:                                                     // POLYLINE MODE
+            float x = polyline_start.x;                             // polyline beginning X
+            float y = polyline_start.y;                             // polyline beginning y
+            float z = polyline_start.z;                             // polyline beginning z
+            for(int i = 0 ; i < polyline_count ; i++)               // we make polyline_count number of lines.
             {
-                glm::vec3 vector(-x/sqrt(x*x + y*y + 4) , y/sqrt(x*x + y*y + 4) , z);
+                glm::vec3 vector = getVector(x,y,z);                                                                // The value of the vector field at (x,y,z)
                 if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                glm::vec3 endPoint = vector + glm::vec3(x,y,z);
-                temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);
+                glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                                     // The endpoint will be (x,y,z) + f(x,y,z)
+                temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                                // we get the coordinates to represent the vector
                 arrowPixels = getArrowPixels(endPoint , vector , lineColor);
-                temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());                                  // we get the coordinates for the arrowHead
                 pixels.insert(pixels.end() , temp.begin() , temp.end());
+
+                //We know change the starting coordinates to be the end coordinates.
                 x = endPoint.x;
                 y = endPoint.y;
                 z = endPoint.z;
@@ -388,4 +478,10 @@ vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<floa
     temp = Bresenham::drawLine(endPoint , endPoint + arrowDir ,color);
     arrow.insert(arrow.end() , temp.begin() , temp.end());
     return arrow;
+}
+
+// This function returns the value of the vector field at a point (x,y,z)
+glm::vec3 getVector(float x , float y , float z)
+{
+    return glm::vec3(-x , -y , z);
 }
