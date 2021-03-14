@@ -28,11 +28,13 @@ void updatePixelData();
 void showDebugWindow();
 vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color);
 
+double simpsons_approximation(double a, double b , double (*f)(double x) , int N);
+
 glm::vec3 getVector(float x , float y , float z);
 
 // window settings
-const unsigned int SCR_WIDTH = 1600;
-const unsigned int SCR_HEIGHT = 900;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
 // camera settings
 glm::vec3 cameraPos(0.0f , 0.0f , 6.0f);
@@ -55,6 +57,7 @@ vector<float> bgColor = {0.25f , 0.25f , 0.25f,1.0f};
 
 float camSpeed = 2.5f;
 
+bool arrowHead = true;
 bool normalize = true;
 int mode = 0;
 
@@ -62,6 +65,7 @@ int polyline_count = 10;
 glm::vec3 polyline_start(1.0f , 1.0f , 0.0f);
 int x_range = 5;
 int y_range = 5;
+float step = 1.0f;
 vector<float> lineColor = {0.96f , 0.91f , 0.11f};
 vector<float> circleColor = {0.11f , 0.91f , 0.96f};
 float z = 0.0f;
@@ -78,7 +82,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Prakhar6969", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Prakhar6969", glfwGetPrimaryMonitor(), NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -104,7 +108,7 @@ int main()
         Aspect ration is set to 16:9.
         The near and far planes are set to be Z = 0.1f and Z = 100.0f
     */
-    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , SCR_WIDTH*1.0f/SCR_HEIGHT , 0.1f , 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1920.0f/1080.0f , 0.1f , 100.0f);
 
     /*
         We get the view matrix from the camera.
@@ -176,22 +180,13 @@ int main()
         renderer.clear();   
 
         // Recalculating the projection matrix with the new FIELD OF VIEW.
-        proj = glm::perspective(glm::radians(camera.getFOV()) , SCR_WIDTH*1.0f/SCR_HEIGHT , 0.1f , 100.0f);
+        proj = glm::perspective(glm::radians(camera.getFOV()) , 1920.0f/1080.0f , 0.1f , 100.0f);
 
         // setting the speed of the camera
         camera.setSpeed(camSpeed);
 
         // getting the view matrix corresponding to the current state of the camera.
         view = camera.getViewMatrix();
-
-        // cout << "Projection matrix.......\n";
-        // glm::mat4 sample = proj * view;
-        // for(int i = 0 ; i < 4 ; i++)
-        // {
-        //     for(int j = 0 ; j < 4; j++)
-        //         printf("%.18f " , sample[i][j]);
-        //     cout << "\n";
-        // }
 
         // IMGUI NEW FRAME
         ImGui_ImplOpenGL3_NewFrame();
@@ -205,7 +200,7 @@ int main()
         shader -> setUniformMat4f("u_MVP" , proj * view);
 
         // Make the draw call
-        renderer.drawPoints(*VAO , *shader , pixels.size());
+        renderer.drawPoints(*VAO , *shader , pixels.size()/6);
 
         // We show our debug window here.
         // This debug window is for Runtime Debugging where we can adjust various parameters and analyze the vector field.
@@ -356,6 +351,7 @@ void showDebugWindow()
     ImGui::ShowStyleSelector("Theme");
     ImGui::Spacing();
     
+    ImGui::Checkbox("ArrowHead" , &arrowHead);
     ImGui::Checkbox("Normalize" , &normalize);
     
     
@@ -363,7 +359,11 @@ void showDebugWindow()
     ImGui::RadioButton("Circle", &mode, 1); ImGui::SameLine();
     ImGui::RadioButton("Line+Circle", &mode, 2); ImGui::SameLine();
     ImGui::RadioButton("PolyLine", &mode,    3);
+    ImGui::RadioButton("Butterfly Effect" , &mode , 4); ImGui::SameLine();
+    ImGui::RadioButton("Euler Spiral" , &mode , 5); ImGui::SameLine();
+    ImGui::RadioButton("Mandlebrot Set" , &mode , 6);
 
+    ImGui::DragFloat("Step value" , &step , 0.001f , 0.001f , 5.0f);
     ImGui::DragInt("X Range" , &x_range , 1.0f , 0 , 20 , "%d");
     ImGui::DragInt("Y Range" , &y_range , 1.0f , 0 , 20 , "%d");
     
@@ -396,28 +396,40 @@ void updatePixelData()
     vector<float>arrowPixels;
 
     pixels = Bresenham::drawAxis(axis_limit , axisColor);           //return the coordinates for drawing the axes.
+    temp = getArrowPixels(glm::vec3(axis_limit , 0 , 0) , glm::vec3(1.0f , 0.0f , 0.0f) , axisColor);
+    pixels.insert(pixels.end() , temp.begin() , temp.end());
+    temp = getArrowPixels(glm::vec3(0 , axis_limit , 0) , glm::vec3(0.0f , 1.0f , 0.0f) , axisColor);
+    pixels.insert(pixels.end() , temp.begin() , temp.end());
+
+    temp = getArrowPixels(glm::vec3(-axis_limit , 0 , 0) , glm::vec3(-1.0f , 0.0f , 0.0f) , axisColor);
+    pixels.insert(pixels.end() , temp.begin() , temp.end());
+    temp = getArrowPixels(glm::vec3(0 , -axis_limit , 0) , glm::vec3(0.0f , -1.0f , 0.0f) , axisColor);
+    pixels.insert(pixels.end() , temp.begin() , temp.end());
 
     switch(mode)
     {
         case 0:                                                     // LINE ONLY MODE
-            for(int x = -x_range ; x <= x_range ; x++)              // x varies from -x_range to +x_range
+            for(float x = -x_range ; x <= x_range ; x+=step)              // x varies from -x_range to +x_range
             {
-                for(int y  = -y_range ; y <= y_range ;y++)          // y varies from -y_range to +Y_range
+                for(float y  = -y_range ; y <= y_range ;y+=step)          // y varies from -y_range to +Y_range
                 {
                     glm::vec3 vector = getVector(x,y,z);                                            // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
                     glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                 // The endpoint will be (x,y,z) + f(x,y,z)
                     temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);            // we get the coordinates to represent the vector
-                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                    // we get the coordinates for the arrowHead
-                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    if(arrowHead)
+                    {
+                        arrowPixels = getArrowPixels(endPoint , vector , lineColor);                // we get the coordinates for the arrowHead
+                        temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    }
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                 }
             }
         break;
         case 1:                                                     // CIRCLE ONLY MODE
-            for(int x = -x_range ; x <= x_range ; x++)
+            for(float x = -x_range ; x <= x_range ; x+=step)
             {
-                for(int y  = -y_range ; y <= y_range ;y++)
+                for(float y  = -y_range ; y <= y_range ;y+=step)
                 {
                     glm::vec3 vector = getVector(x,y,z);                                                                                // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
@@ -427,23 +439,27 @@ void updatePixelData()
             }
         break;
         case 2:                                                     // LINE + CIRCLE MODE
-            for(int x = -x_range ; x <= x_range ; x++)
+            for(float x = -x_range ; x <= x_range ; x+=step)
             {
-                for(int y  = -y_range ; y <= y_range ;y++)
+                for(float y  = -y_range ; y <= y_range ;y+=step)
                 {
                     glm::vec3 vector = getVector(x,y,z);                                                        // The value of the vector field at (x,y,z)
                     if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
                     glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                             // The endpoint will be (x,y,z) + f(x,y,z)
                     temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                        // we get the coordinates to represent the vector
-                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                                // we get the coordinates for the arrowHead
-                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    if(arrowHead)
+                    {
+                        arrowPixels = getArrowPixels(endPoint , vector , lineColor);                            // we get the coordinates for the arrowHead
+                        temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                    }
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                     temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);              // we get the coordinates for the circle
                     pixels.insert(pixels.end() , temp.begin() , temp.end());
                 }
             }
         break;
-        case 3:                                                     // POLYLINE MODE
+        case 3: 
+        {                                                           // POLYLINE MODE
             float x = polyline_start.x;                             // polyline beginning X
             float y = polyline_start.y;                             // polyline beginning y
             float z = polyline_start.z;                             // polyline beginning z
@@ -454,7 +470,11 @@ void updatePixelData()
                 glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                                     // The endpoint will be (x,y,z) + f(x,y,z)
                 temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                                // we get the coordinates to represent the vector
                 arrowPixels = getArrowPixels(endPoint , vector , lineColor);
-                temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());                                  // we get the coordinates for the arrowHead
+               if(arrowHead)
+                {
+                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                                    // we get the coordinates for the arrowHead
+                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
+                }
                 pixels.insert(pixels.end() , temp.begin() , temp.end());
 
                 //We know change the starting coordinates to be the end coordinates.
@@ -462,10 +482,190 @@ void updatePixelData()
                 y = endPoint.y;
                 z = endPoint.z;
             }
+            // GLCall(glPointSize(2));
+            // temp = Bresenham::drawCircle(glm::vec3(1.0f , 1.0f , 0.0f) , 3.0f , circleColor);
+            // pixels.insert(pixels.end() , temp.begin() , temp.end());
+        }
+        break;
+        case 4:
+            {
+                /*
+                    EXPERIMENT 1
+                    I tried to create a butterfly pattern. I had made something like this in python before and I tried to implement the same in OpenGL.
+                    The result was not exactly same. It kind of created a different pattern. 
+                    Interesing effects were seen when step is set 0.002 - 0.004 and you have ZOOMED OUT a little bit.......
+                */
+                GLCall(glPointSize(2));
+
+                float radius = step;
+
+                glm::vec3 center1(radius,0.0f,0.0f);     
+                glm::vec3 center2(0.0f,radius,0.0f);
+                glm::vec3 center3(-radius,0.0f,0.0f);
+                glm::vec3 center4(0.0f,-radius,0.0f);
+
+                vector<float> blue{0,0,225};
+                vector<float> pink{255,0,255};
+                vector<float>yellow{255,215,0};
+                vector<float>red{255,0,0};
+                vector<float>white{255,255,255};
+
+                vector<vector<float>>colorPalette;
+                colorPalette.emplace_back(blue);
+                colorPalette.emplace_back(pink);
+                colorPalette.emplace_back(yellow);
+                colorPalette.emplace_back(red);
+                colorPalette.emplace_back(white);
+
+
+                //blue pink yellow red white blue
+
+                vector<float>temp;
+                vector<float>temp2;
+                    
+                for(int i = 0 ; i < 100 ; i++)
+                {
+                    int colorIndex = i / 20;
+                    vector<float> color = colorPalette[colorIndex];
+
+                    temp = Bresenham::drawCircle(center1 , radius , color);
+                    temp2 = Bresenham::drawCircle(center2 , radius , color);
+                    temp.insert(temp.end() , temp2.begin() , temp2.end());
+                    temp2 = Bresenham::drawCircle(center3 , radius , color);
+                    temp.insert(temp.end() , temp2.begin() , temp2.end());
+                    temp2 = Bresenham::drawCircle(center4 , radius , color);
+                    temp.insert(temp.end() , temp2.begin() , temp2.end());
+                    pixels.insert(pixels.end() , temp.begin() , temp.end());
+                    center1 +=  glm::vec3(1.0f,0.0f,0.0f) * step;
+                    center2 += glm::vec3(0.0f,1.0f,0.0f)  * step;
+                    center3 += glm::vec3(-1.0f,0.0f,0.0f) * step;
+                    center4 += glm::vec3(0.0f,-1.0f,0.0f) * step;
+                    radius += step;
+                }                                                     
+            }
+        break;
+        case 5:
+        {
+            /*
+                EXPERIMENT 2
+                Euler Spiral
+                Made using Simpsons Approximation of the Fresnal Integrals.
+            */
+           GLCall(glPointSize(2));
+           auto cos_x_x = [](double x)
+           {
+               return cos(glm::radians(x)*glm::radians(x));
+           };
+           auto sin_x_x = [](double x)
+           {
+               return sin(glm::radians(x)*glm::radians(x));
+           };
+           const int N = 100*100;
+           int l_range = 700;
+           for(double L = -l_range ; L <= l_range ; L+=0.1)
+           {
+               double x = simpsons_approximation(0 , L , cos_x_x , N);
+               double y = simpsons_approximation(0 , L , sin_x_x , N);
+               pixels.push_back(x/10);pixels.push_back(y/10);pixels.push_back(z);
+               pixels.insert(pixels.end() , lineColor.begin() , lineColor.end());
+           }
+           
+        }
+        break;
+        case 6:
+        {
+            /*
+                EXPERMENT 3
+                Mandlebrot Set
+            */
+            int maxIteration = 100;
+            for(float x = -2 ; x <= 1; x += step)
+            {
+                for(float y = -1 ; y <= 1 ; y += step)
+                {
+                    glm::vec2 cc(x , y);
+                    double iteration = 0.0;
+                    glm::vec2 z(0);
+
+                    while(glm::length(z) <= 2 && iteration < maxIteration)
+                    {
+                        iteration++;
+                        float temp_x = z.x * z.x - z.y * z.y;
+                        float temp_y = 2 * z.x * z.y;
+                        z.x = temp_x;
+                        z.y = temp_y;
+                        z = z + cc;
+                    }
+                    pixels.push_back(cc.x);
+                    pixels.push_back(cc.y);
+                    pixels.push_back(0);
+
+                    if(iteration != maxIteration)
+                        iteration += 1.0 - log(log2(glm::length(z)));
+
+                    double hue = 360.0 * iteration / maxIteration;
+                    double saturation = 1;
+                    double value = iteration < maxIteration ? 1 :  0;
+
+                    float c = value * saturation;
+                    float m = value - saturation;
+
+                    float x = c * (1 - abs(((int)hue/60)%2 - 1));
+
+                    float r , g , b;
+
+                    if(hue >= 0 && hue <= 60)
+                    {
+                        r = c+m;
+                        g = x+m;
+                        b = m;
+                    }
+                    if(hue >= 60 && hue <= 120)
+                    {
+                        r = x+m;
+                        g = c+m;
+                        b = m;
+                    }
+                    if(hue >= 120 && hue <= 180)
+                    {
+                        r = m;
+                        g = c+m;
+                        b = x+m;
+                    }
+                    if(hue >= 180 && hue <= 240)
+                    {
+                        r = m;
+                        g = x+m;
+                        b = c+m;
+                    }
+                    if(hue >= 240 && hue <= 300)
+                    {
+                        r = x+m;
+                        g = m;
+                        b = c+m;
+                    }
+                    if(hue >= 300 && hue <= 360)
+                    {
+                        r = c+m;
+                        g = m;
+                        b = m+x;
+                    }
+                    if(hue > 360)
+                    {
+                        r = m;
+                        g = m;
+                        b = m;
+                    }
+
+                    pixels.push_back(r);
+                    pixels.push_back(g);
+                    pixels.push_back(b);
+
+                }
+            }
+        }
         break;
     }
-
-    
 }
 
 vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color)
@@ -483,5 +683,19 @@ vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<floa
 // This function returns the value of the vector field at a point (x,y,z)
 glm::vec3 getVector(float x , float y , float z)
 {
-    return glm::vec3(-x , -y , z);
+    x = x / 10;
+    y = y / 10;
+    return glm::vec3(1.618 * x  * (1 - x),1.618 * y * (1 - y) , z);    
+}
+
+double simpsons_approximation(double a, double b , double (*f)(double x) , int N){
+
+    double h = (b - a) / N;
+    double s = f(a) + f(b); // a = x_0 and b = x_2n
+    for (int i = 1; i <= N - 1; ++i) { // Refer to final Simpson's formula
+        double x = a + h * i;
+        s += f(x) * ((i & 1) ? 4 : 2);
+    }
+    s *= h / 3;
+    return s;
 }
