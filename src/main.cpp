@@ -13,6 +13,7 @@
 
 #include "external/glm/glm.hpp"
 #include "external/glm/gtc/matrix_transform.hpp"
+#include "external/glm/gtc/type_ptr.hpp"
 
 #include "external/imgui/imgui.h"
 #include "external/imgui/imgui_impl_glfw.h"
@@ -23,14 +24,7 @@ using namespace std;
 void processInput(GLFWwindow *window);
 void mouseCallBack(GLFWwindow* window, double xpos, double ypos);
 void scrollCallBack(GLFWwindow* window, double xoffset, double yoffset);
-
-void updatePixelData();
 void showDebugWindow();
-vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color);
-
-double simpsons_approximation(double a, double b , double (*f)(double x) , int N);
-
-glm::vec3 getVector(float x , float y , float z);
 
 // window settings
 const unsigned int SCR_WIDTH = 1920;
@@ -47,28 +41,7 @@ bool locked = true;
 //frame timing
 float deltaTime = 0.0f;
 
-//DEBUGGING VARIABLES
-vector<float>pixels;
-glm::mat4 rotA(1.0f);
-glm::mat4 rotC(1.0f);
-int axis_limit = 10;
-vector<float> axisColor = {1.0f , 1.0f ,1.0f};
-vector<float> bgColor = {0.25f , 0.25f , 0.25f,1.0f};
-
 float camSpeed = 2.5f;
-
-bool arrowHead = true;
-bool normalize = true;
-int mode = 0;
-
-int polyline_count = 10;
-glm::vec3 polyline_start(1.0f , 1.0f , 0.0f);
-int x_range = 5;
-int y_range = 5;
-float step = 1.0f;
-vector<float> lineColor = {0.96f , 0.91f , 0.11f};
-vector<float> circleColor = {0.11f , 0.91f , 0.96f};
-float z = 0.0f;
 
 int main()
 {
@@ -101,53 +74,172 @@ int main()
     }
 
     cout << glGetString(GL_VERSION) << "\n";
+    camera.setSpeed(camSpeed);
 
-    /*
-        We create a perspective projective matrix
-        Field of view is returned from the camera.
-        Aspect ration is set to 16:9.
-        The near and far planes are set to be Z = 0.1f and Z = 100.0f
-    */
+    vector<float>wall[2];
+    //back wall
+    wall[0] = {
+        -0.5,   0.0,    -0.5,    0.0,    0.0,    1.0,
+        0.5,    0.0,    -0.5,    0.0,    0.0,    1.0,
+        0.5,    1.0,    -0.5,    0.0,    0.0,    1.0,
+        0.5,    1.0,    -0.5,    0.0,    0.0,    1.0,
+        -0.5,   1.0,    -0.5,    0.0,    0.0,    1.0,
+        -0.5,   0.0,    -0.5,    0.0,    0.0,    1.0,
+        //right wall
+        0.5,    0.0,    -0.5,    -1.0,    0.0,    0.0,
+        0.5,    1.0,    -0.5,    -1.0,    0.0,    0.0,
+        0.5,    1.0,     0.5,    -1.0,    0.0,    0.0,
+        0.5,    1.0,     0.5,    -1.0,    0.0,    0.0,
+        0.5,    0.0,     0.5,    -1.0,    0.0,    0.0,
+        0.5,    0.0,    -0.5,    -1.0,    0.0,    0.0,
+        //left wall
+        -0.5,   0.0,    -0.5,    1.0,    0.0,    0.0,
+        -0.5,   1.0,    -0.5,    1.0,    0.0,    0.0,
+        -0.5,   1.0,     0.5,    1.0,    0.0,    0.0,
+        -0.5,   1.0,     0.5,    1.0,    0.0,    0.0,
+        -0.5,   0.0,     0.5,    1.0,    0.0,    0.0,
+        -0.5,   0.0,    -0.5,    1.0,    0.0,    0.0
+    };
+    wall[1] = {
+        -0.5,   1.0,   -0.5,    0.0,    -1.0,    0.0,
+         0.5,   1.0,   -0.5,    0.0,    -1.0,    0.0,
+         0.5,   1.0,    0.5,    0.0,    -1.0,    0.0,
+         0.5,   1.0,    0.5,    0.0,    -1.0,    0.0,
+        -0.5,   1.0,    0.5,    0.0,    -1.0,    0.0,
+        -0.5,   1.0,   -0.5,    0.0,    -1.0,    0.0,
+        //floor
+        -0.5,   0.0,   -0.5,    0.0,    1.0,    0.0,
+         0.5,   0.0,   -0.5,    0.0,    1.0,    0.0,
+         0.5,   0.0,    0.5,    0.0,    1.0,    0.0,
+         0.5,   0.0,    0.5,    0.0,    1.0,    0.0,
+        -0.5,   0.0,    0.5,    0.0,    1.0,    0.0,
+        -0.5,   0.0,   -0.5,    0.0,    1.0,    0.0
+    };
+
+    vector<float> cube_positions = {
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+    };
+
+    VertexArray* VAO_object = new VertexArray();
+    VertexBufferLayout* layout_object = new VertexBufferLayout();
+    layout_object -> push<float>(3);
+    layout_object -> push<float>(3);
+    VertexBuffer* VBO_object = new VertexBuffer(cube_positions.data() , cube_positions.size() * sizeof(float));
+
+    VAO_object -> addBuffer(*VBO_object , *layout_object);
+
+    int sourceCount = 4;
+    glm::vec3 lightPos[sourceCount];
+
+    lightPos[0] = glm::vec3(3.0f , 4.8f , 3.0f);
+    lightPos[1] = glm::vec3(3.0f , 4.8f , -3.0f);
+    lightPos[2] = glm::vec3(-3.0f , 4.8f , 3.0f);
+    lightPos[3] = glm::vec3(-3.0f , 4.8f , -3.0f);
+
+    glm::vec3 lightColor(1.0f , 1.0f , 1.0f);
+    float constant = 1.0f;
+    float linear = 0.07f;
+    float quadratic = 0.017f;
+
+    Shader* shader_object = new Shader("res/shaders/phong.shader");
+    shader_object -> bind();
+    for(int i = 0 ; i < 4 ; i++)
+    {   
+        shader_object -> setUniform3f("pointLights["+to_string(i)+"].position" , lightPos[i].x , lightPos[i].y , lightPos[i].z);
+        shader_object -> setUniform3f("pointLights["+to_string(i)+"].ambient",  lightColor.r , lightColor.g , lightColor.b);
+        shader_object -> setUniform3f("pointLights["+to_string(i)+"].diffuse",  lightColor.r , lightColor.g , lightColor.b);
+        shader_object -> setUniform3f("pointLights["+to_string(i)+"].specular", lightColor.r , lightColor.g , lightColor.b);
+    }
+    
+    
+
+
+    Shader* shader_lightSource = new Shader("res/shaders/lightSource.shader");
+
     glm::mat4 proj = glm::perspective(glm::radians(camera.getFOV()) , 1920.0f/1080.0f , 0.1f , 100.0f);
-
-    /*
-        We get the view matrix from the camera.
-        This matrix corresponds to the inital state of the camera where it is placed at (0,0,6) facing at the origin.
-    */
     glm::mat4 view = camera.getViewMatrix();
+    glm::mat4 lightSource[sourceCount];
+    for(int i = 0 ; i < 4 ;i++)
+        {
+            lightSource[i] = glm::mat4(1.0f); lightSource[i] = glm::translate(lightSource[i] , lightPos[i]); lightSource[i] = glm::scale(lightSource[i] , glm::vec3(0.5f , 0.01f , 0.5f));
+        }
 
-    Shader* shader = new Shader("res/shaders/Basic.shader");
+    glm::mat4 mdl_wall = glm::mat4(1.0f); mdl_wall = glm::scale(mdl_wall , glm::vec3(7.0f , 5.0f , 7.0f));
 
-    // We create a VertexArray object which will later be used to combine our buffer and our layout.
-    VertexArray* VAO = new VertexArray();
+    float tableThickness = 0.05;
+    float tableWidth = 1;
+    float tableLength = 2;
+    float tableLegLength = 0.2;
+    float restHeight = 1;
+    
+    glm::mat4 tableTop = glm::mat4(1.0f); tableTop = glm::translate(tableTop , glm::vec3(0.0 , tableLegLength , 0.0)); tableTop = glm::scale(tableTop , glm::vec3(tableLength , tableThickness , tableWidth));
+    glm::mat4 tableLeg[4];
+    tableLeg[0] = glm::mat4(1.0f); tableLeg[0] = glm::translate(tableLeg[0] , glm::vec3(tableLength/2 - tableThickness/2, tableLegLength/2 , -(tableWidth/2-tableThickness/2))); tableLeg[0] = glm::scale(tableLeg[0] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+    tableLeg[1] = glm::mat4(1.0f); tableLeg[1] = glm::translate(tableLeg[1] , glm::vec3(-(tableLength/2 - tableThickness/2), tableLegLength/2 , -(tableWidth/2-tableThickness/2))); tableLeg[1] = glm::scale(tableLeg[1] , glm::vec3(tableThickness, tableLegLength , tableThickness));
+    tableLeg[2] = glm::mat4(1.0f); tableLeg[2] = glm::translate(tableLeg[2] , glm::vec3(-(tableLength/2 - tableThickness/2), tableLegLength/2 , tableWidth/2-tableThickness/2)); tableLeg[2] = glm::scale(tableLeg[2] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+    tableLeg[3] = glm::mat4(1.0f); tableLeg[3] = glm::translate(tableLeg[3] , glm::vec3(tableLength/2 - tableThickness/2, tableLegLength/2 , tableWidth/2-tableThickness/2)); tableLeg[3] = glm::scale(tableLeg[3] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+    glm::mat4 backRest = glm::mat4(1.0f); backRest = glm::translate(backRest , glm::vec3(tableLength/2-tableThickness/2 , tableLegLength + restHeight/2, 0));; backRest = glm::scale(backRest , glm::vec3(tableThickness , restHeight , tableWidth));
 
-    /*
-        The layout in which the data will be stored in pur buffer will be like this -
-        (posX , posY , posZ) , (colorR , colorG , colorB)
-        We specifiy this by first pushing 3 floats for position and then again push 3 floats for color.
-    */
-    VertexBufferLayout* Layout = new VertexBufferLayout();
-    Layout -> push<float>(3);
-    Layout -> push<float>(3);
 
-    /*
-    Here we initialize the VertexBuffer with an empty array.
-    This pixel array will change during runtime when the user makes some changes in the ImGUI and clicks on 'Apply Changes'.
-    */
-    VertexBuffer* VBO = new VertexBuffer(pixels.data() , pixels.size() * sizeof(float));
 
-    // Our buffer is now linked to out VertexArray object.
-    VAO -> addBuffer(*VBO , *Layout);
+    float max = 40.0f;
+    vector<float>axes_positions = {
+        max  , 0.0f , 0.0f , 1.0f , 1.0f , 1.0f,
+        -max , 0.0f , 0.0f , 1.0f , 1.0f , 1.0f,
+        0.0f , max  , 0.0f , 1.0f , 1.0f , 1.0f,
+        0.0f , -max , 0.0f , 1.0f , 1.0f , 1.0f,
+        0.0f , 0.0f , max  , 1.0f , 1.0f , 1.0f,
+        0.0f , 0.0f , -max , 1.0f , 1.0f , 1.0f
+    };
+    VertexArray* VAO_axes = new VertexArray();
+    VertexBuffer* VBO_2 = new VertexBuffer(axes_positions.data() , axes_positions.size() * sizeof(float));
+    VertexBufferLayout* layout_2 = new VertexBufferLayout();
+    layout_2->push<float>(3);
+    layout_2->push<float>(3);
+    VAO_axes->addBuffer(*VBO_2 , *layout_2);
+    Shader* shader_axes = new Shader("res/shaders/basic.shader");
 
-    /*
-        We create an instance of the Renderer class.
-        This will handle all our draw calls.
-    */
-    Renderer renderer;
 
-    // GLCall(glEnable(GL_BLEND));
-    // GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-    GLCall(glEnable(GL_DEPTH_TEST));
 
     //Setup IMGUI
     IMGUI_CHECKVERSION();
@@ -157,17 +249,16 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);    
     ImGui_ImplOpenGL3_Init("#version 330");  
 
-    /*
-        We create two rotation matrices which will rotate a vector by 30deg about the Z axis.
-        rotA will rotate anti-clockwise.
-        rotC will rotate clockwise.
-        These matricis will be used later to create arroe heads for vector and axes.
-    */
-    rotA = glm::rotate(rotA , glm::radians(-30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
-    rotC = glm::rotate(rotC , glm::radians(30.0f) , glm::vec3(0.0f , 0.0f , 1.0f));
 
-    // We bind our shader here only because we are not changing the shader later.
-    shader -> bind();
+    Renderer renderer;
+
+    // GLCall(glEnable(GL_BLEND));
+    // GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+    GLCall(glEnable(GL_DEPTH_TEST));
+
+    glm::mat4 rotMat(1.0f);
+
+    GLCall(glBindVertexArray(0));
 
     // render loop  
     // -----------
@@ -175,52 +266,116 @@ int main()
     {   
         processInput(window);
 
-        // We set the bgColor
-        GLCall(glClearColor(bgColor[0] , bgColor[1] , bgColor[2] , bgColor[3]));
+        GLCall(glClearColor(0.0f , 0.0f , 0.0f , 1.0f));
         renderer.clear();   
 
-        // Recalculating the projection matrix with the new FIELD OF VIEW.
         proj = glm::perspective(glm::radians(camera.getFOV()) , 1920.0f/1080.0f , 0.1f , 100.0f);
 
-        // setting the speed of the camera
-        camera.setSpeed(camSpeed);
-
-        // getting the view matrix corresponding to the current state of the camera.
         view = camera.getViewMatrix();
 
-        // IMGUI NEW FRAME
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        /*
-            We set the MVP matrix in our shader.
-            In ouw case the Model (M) matrix is an identity matrix therefore there is no need to mention it.
-        */
-        shader -> setUniformMat4f("u_MVP" , proj * view);
-
-        // Make the draw call
-        renderer.drawPoints(*VAO , *shader , pixels.size()/6);
-
-        // We show our debug window here.
-        // This debug window is for Runtime Debugging where we can adjust various parameters and analyze the vector field.
         showDebugWindow();
-        ImGui::NewLine();
-        ImGui::SameLine(200);
-        if(ImGui::Button("Apply Changes"))
+        ImGui::SliderFloat("Table Width" , &tableWidth , 0 , 5);
+        ImGui::SliderFloat("Table Length" , &tableLength , 0 , 5);
+        ImGui::SliderFloat("Table Thickness" , &tableThickness , 0 , 5);
+        ImGui::SliderFloat("Table Leg Length" , &tableLegLength , 0 , 5);
+        ImGui::SliderFloat("Backrest height" , &restHeight , 0 , 5);
+        ImGui::Spacing();
+        ImGui::ColorEdit3("Source Color" , glm::value_ptr(lightColor));
+        ImGui::DragFloat("Constant" , &constant , 0.001 , 0.1 , 5);
+        ImGui::DragFloat("Linear" , &linear , 0.001 , 0 , 1);
+        ImGui::DragFloat("Quadratic" , &quadratic , 0.0001 , 0 , 1 , "%.4f");
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        
+
+        // {
+        //     VAO_axes -> bind();
+        //     shader_axes -> bind();
+        //     shader_axes -> setUniformMat4f("u_MVP" , proj * view);
+        //     GLCall(glDrawArrays(GL_LINES, 0 , 6));
+        // }
+        
+        VBO_object -> bind();
+        VBO_object -> updateData(cube_positions.data() , cube_positions.size() * sizeof(float));
+        VAO_object -> addBuffer(*VBO_object , *layout_object);
+
         {
-            // We upadate the pixel data to what is set by the user.
-            updatePixelData();
-            /*
-                We know update the data inside our VertexBuffer.
-                NOTE : Updating the data inside our VertexBuffer does not unbinds the buffer nor does it require the bind function to be called again.
-            */
-            VBO->updateData(pixels.data() , pixels.size() * sizeof(float));
+            shader_lightSource -> bind();
+            for(int i = 0 ; i < sourceCount ; i++)
+            {
+                glm::mat4 MVP = proj * view * lightSource[i];
+                shader_lightSource -> setUniformMat4f("u_MVP" , MVP);
+                shader_lightSource -> setUniform3f("lightColor" , lightColor.r , lightColor.g , lightColor.b);
+                GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            }
+            //renderer.draw(*VAO[0] , *IBO[0] , *shader);
         }
 
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        shader_object -> bind();
+        shader_object -> setUniformMat4f("proj" , proj);
+        shader_object -> setUniformMat4f("view" , view);
+        shader_object -> setUniform3f("viewPos" , camera.getPosition().x , camera.getPosition().y , camera.getPosition().z);
+        shader_object -> setUniform3f("material.ambient",0.0,0.1,0.06);
+        shader_object -> setUniform3f("material.diffuse",0.0,0.50980392,0.50980392);
+        shader_object -> setUniform3f("material.specular",0.50196078,0.50196078,0.50196078);
+        shader_object -> setUniform1f("material.shininess",0.25 * 128);
+        for(int i = 0 ; i < sourceCount ; i++)
+        {   
+            shader_object -> setUniform3f("pointLights["+to_string(i)+"].ambient",  lightColor.r , lightColor.g , lightColor.b);
+            shader_object -> setUniform3f("pointLights["+to_string(i)+"].diffuse",  lightColor.r , lightColor.g , lightColor.b);
+            shader_object -> setUniform3f("pointLights["+to_string(i)+"].specular", lightColor.r , lightColor.g , lightColor.b);
+            shader_object -> setUniform1f("pointLights["+to_string(i)+"].a_constant" , constant);
+            shader_object -> setUniform1f("pointLights["+to_string(i)+"].a_linear" , linear);
+            shader_object -> setUniform1f("pointLights["+to_string(i)+"].a_quadratic" , quadratic);
+        }
 
-        //Render IMGUI
+        shader_object -> setUniformMat4f("model" , mdl_wall);
+
+        {
+            VBO_object -> updateData(wall[0].data() , wall[0].size() * sizeof(float));
+            VAO_object -> addBuffer(*VBO_object , *layout_object);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,18));
+        }
+        shader_object -> setUniform3f("material.ambient",0.25,0.25,0.25);
+        shader_object -> setUniform3f("material.diffuse",0.4,0.4,0.4);
+        shader_object -> setUniform3f("material.specular",0.0,0.0,0.0);
+        shader_object -> setUniform1f("material.shininess",0.6 * 128);
+        {
+            VBO_object -> updateData(wall[1].data() , wall[1].size() * sizeof(float));
+            VAO_object -> addBuffer(*VBO_object , *layout_object);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,12));
+        }
+        shader_object -> setUniform3f("material.ambient",0.135,0.2225,0.1575);
+        shader_object -> setUniform3f("material.diffuse",0.54,0.89,0.63);
+        shader_object -> setUniform3f("material.specular",0.316228,0.316228,0.316228);
+        shader_object -> setUniform1f("material.shininess",0.1 * 128);
+
+        tableTop = glm::mat4(1.0f); tableTop = glm::translate(tableTop , glm::vec3(0.0 , tableLegLength , 0.0)); tableTop = glm::scale(tableTop , glm::vec3(tableLength , tableThickness , tableWidth));
+        tableLeg[0] = glm::mat4(1.0f); tableLeg[0] = glm::translate(tableLeg[0] , glm::vec3(tableLength/2 - tableThickness/2, tableLegLength/2 , -(tableWidth/2-tableThickness/2))); tableLeg[0] = glm::scale(tableLeg[0] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+        tableLeg[1] = glm::mat4(1.0f); tableLeg[1] = glm::translate(tableLeg[1] , glm::vec3(-(tableLength/2 - tableThickness/2), tableLegLength/2 , -(tableWidth/2-tableThickness/2))); tableLeg[1] = glm::scale(tableLeg[1] , glm::vec3(tableThickness, tableLegLength , tableThickness));
+        tableLeg[2] = glm::mat4(1.0f); tableLeg[2] = glm::translate(tableLeg[2] , glm::vec3(-(tableLength/2 - tableThickness/2), tableLegLength/2 , tableWidth/2-tableThickness/2)); tableLeg[2] = glm::scale(tableLeg[2] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+        tableLeg[3] = glm::mat4(1.0f); tableLeg[3] = glm::translate(tableLeg[3] , glm::vec3(tableLength/2 - tableThickness/2, tableLegLength/2 , tableWidth/2-tableThickness/2)); tableLeg[3] = glm::scale(tableLeg[3] , glm::vec3(tableThickness , tableLegLength , tableThickness));
+        backRest = glm::mat4(1.0f); backRest = glm::translate(backRest , glm::vec3(tableLength/2-tableThickness/2 , tableLegLength + restHeight/2, 0));; backRest = glm::scale(backRest , glm::vec3(tableThickness , restHeight , tableWidth));
+
+        {
+            VBO_object -> updateData(cube_positions.data() , cube_positions.size() * sizeof(float));
+            VAO_object -> addBuffer(*VBO_object , *layout_object);
+            shader_object -> setUniformMat4f("model" , tableTop);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            shader_object -> setUniformMat4f("model" , tableLeg[0]);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            shader_object -> setUniformMat4f("model" , tableLeg[1]);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            shader_object -> setUniformMat4f("model" , tableLeg[2]);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            shader_object -> setUniformMat4f("model" , tableLeg[3]);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+            shader_object -> setUniformMat4f("model" , backRest);
+            GLCall(glDrawArrays(GL_TRIANGLES , 0 ,36));
+        }
+
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -328,374 +483,4 @@ void showDebugWindow()
     {
         ImGui::Text("Still Under Construction :/");
     }
-    if(ImGui::CollapsingHeader("Configuration"))
-    {
-        if(ImGui::TreeNode("Grid"))
-        {
-            ImGui::DragInt("Axis limit" , &axis_limit , 0.5f , 0 , 100 , "%d");
-            ImGui::ColorEdit3("Axis Color" , axisColor.data());
-            ImGui::ColorEdit4("Background Color" , bgColor.data());
-            ImGui::TreePop();
-        }
-        if(ImGui::TreeNode("Camera"))
-        {
-            ImGui::DragFloat("Camera Speed" , &camSpeed , 0.25f , 1.0f , 5.0f);
-            ImGui::NewLine();
-            ImGui::SameLine(200);
-            if(ImGui::Button("Recenter Camera"))
-                camera.recenter(cameraPos);
-            ImGui::TreePop();
-        }
-    }
-    ImGui::Spacing();
-    ImGui::ShowStyleSelector("Theme");
-    ImGui::Spacing();
-    
-    ImGui::Checkbox("ArrowHead" , &arrowHead);
-    ImGui::Checkbox("Normalize" , &normalize);
-    
-    
-    ImGui::RadioButton("Line", &mode, 0); ImGui::SameLine();
-    ImGui::RadioButton("Circle", &mode, 1); ImGui::SameLine();
-    ImGui::RadioButton("Line+Circle", &mode, 2); ImGui::SameLine();
-    ImGui::RadioButton("PolyLine", &mode,    3);
-    ImGui::RadioButton("Butterfly Effect" , &mode , 4); ImGui::SameLine();
-    ImGui::RadioButton("Euler Spiral" , &mode , 5); ImGui::SameLine();
-    ImGui::RadioButton("Mandlebrot Set" , &mode , 6);
-
-    ImGui::DragFloat("Step value" , &step , 0.001f , 0.001f , 5.0f);
-    ImGui::DragInt("X Range" , &x_range , 1.0f , 0 , 20 , "%d");
-    ImGui::DragInt("Y Range" , &y_range , 1.0f , 0 , 20 , "%d");
-    
-    ImGui::ColorEdit3("Line Color" , lineColor.data());
-    ImGui::ColorEdit3("Circle Color" , circleColor.data());
-
-    ImGui::AlignTextToFramePadding();
-    ImGui::Text("Polyline count:");
-    ImGui::SameLine();
-    float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-    ImGui::PushButtonRepeat(true);
-    if (ImGui::ArrowButton("##left", ImGuiDir_Left)) { polyline_count--; polyline_count = max(0 , polyline_count); }
-    ImGui::SameLine(0.0f, spacing);
-    if (ImGui::ArrowButton("##right", ImGuiDir_Right)) { polyline_count++; }
-    ImGui::PopButtonRepeat();
-    ImGui::SameLine();
-    ImGui::Text("%d", polyline_count);
-
-    ImGui::DragFloat("Polyline x0" , &polyline_start.x,0.5f,0,axis_limit);
-    ImGui::DragFloat("Polyline y0" , &polyline_start.y,0.5f,0,axis_limit);
-
-}
-
-/*
-    Updates the data which is to be rendered on the Screen.
-*/
-void updatePixelData()
-{
-    vector<float>temp;
-    vector<float>arrowPixels;
-
-    pixels = Bresenham::drawAxis(axis_limit , axisColor);           //return the coordinates for drawing the axes.
-    temp = getArrowPixels(glm::vec3(axis_limit , 0 , 0) , glm::vec3(1.0f , 0.0f , 0.0f) , axisColor);
-    pixels.insert(pixels.end() , temp.begin() , temp.end());
-    temp = getArrowPixels(glm::vec3(0 , axis_limit , 0) , glm::vec3(0.0f , 1.0f , 0.0f) , axisColor);
-    pixels.insert(pixels.end() , temp.begin() , temp.end());
-
-    temp = getArrowPixels(glm::vec3(-axis_limit , 0 , 0) , glm::vec3(-1.0f , 0.0f , 0.0f) , axisColor);
-    pixels.insert(pixels.end() , temp.begin() , temp.end());
-    temp = getArrowPixels(glm::vec3(0 , -axis_limit , 0) , glm::vec3(0.0f , -1.0f , 0.0f) , axisColor);
-    pixels.insert(pixels.end() , temp.begin() , temp.end());
-
-    switch(mode)
-    {
-        case 0:                                                     // LINE ONLY MODE
-            for(float x = -x_range ; x <= x_range ; x+=step)              // x varies from -x_range to +x_range
-            {
-                for(float y  = -y_range ; y <= y_range ;y+=step)          // y varies from -y_range to +Y_range
-                {
-                    glm::vec3 vector = getVector(x,y,z);                                            // The value of the vector field at (x,y,z)
-                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                 // The endpoint will be (x,y,z) + f(x,y,z)
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);            // we get the coordinates to represent the vector
-                    if(arrowHead)
-                    {
-                        arrowPixels = getArrowPixels(endPoint , vector , lineColor);                // we get the coordinates for the arrowHead
-                        temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                    }
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                }
-            }
-        break;
-        case 1:                                                     // CIRCLE ONLY MODE
-            for(float x = -x_range ; x <= x_range ; x+=step)
-            {
-                for(float y  = -y_range ; y <= y_range ;y+=step)
-                {
-                    glm::vec3 vector = getVector(x,y,z);                                                                                // The value of the vector field at (x,y,z)
-                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);      // we get the coordinates for the circle
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                }
-            }
-        break;
-        case 2:                                                     // LINE + CIRCLE MODE
-            for(float x = -x_range ; x <= x_range ; x+=step)
-            {
-                for(float y  = -y_range ; y <= y_range ;y+=step)
-                {
-                    glm::vec3 vector = getVector(x,y,z);                                                        // The value of the vector field at (x,y,z)
-                    if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                    glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                             // The endpoint will be (x,y,z) + f(x,y,z)
-                    temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                        // we get the coordinates to represent the vector
-                    if(arrowHead)
-                    {
-                        arrowPixels = getArrowPixels(endPoint , vector , lineColor);                            // we get the coordinates for the arrowHead
-                        temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                    }
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                    temp = Bresenham::drawCircle(glm::vec3(x,y,z) + glm::vec3(0.5f)*vector , glm::length(vector)/2 , circleColor);              // we get the coordinates for the circle
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                }
-            }
-        break;
-        case 3: 
-        {                                                           // POLYLINE MODE
-            float x = polyline_start.x;                             // polyline beginning X
-            float y = polyline_start.y;                             // polyline beginning y
-            float z = polyline_start.z;                             // polyline beginning z
-            for(int i = 0 ; i < polyline_count ; i++)               // we make polyline_count number of lines.
-            {
-                glm::vec3 vector = getVector(x,y,z);                                                                // The value of the vector field at (x,y,z)
-                if(vector != glm::vec3(0.0f) && normalize)vector = glm::normalize(vector);
-                glm::vec3 endPoint = vector + glm::vec3(x,y,z);                                                     // The endpoint will be (x,y,z) + f(x,y,z)
-                temp = Bresenham::drawLine(glm::vec3(x,y,z) , endPoint , lineColor);                                // we get the coordinates to represent the vector
-                arrowPixels = getArrowPixels(endPoint , vector , lineColor);
-               if(arrowHead)
-                {
-                    arrowPixels = getArrowPixels(endPoint , vector , lineColor);                                    // we get the coordinates for the arrowHead
-                    temp.insert(temp.end() , arrowPixels.begin() , arrowPixels.end());
-                }
-                pixels.insert(pixels.end() , temp.begin() , temp.end());
-
-                //We know change the starting coordinates to be the end coordinates.
-                x = endPoint.x;
-                y = endPoint.y;
-                z = endPoint.z;
-            }
-            // GLCall(glPointSize(2));
-            // temp = Bresenham::drawCircle(glm::vec3(1.0f , 1.0f , 0.0f) , 3.0f , circleColor);
-            // pixels.insert(pixels.end() , temp.begin() , temp.end());
-        }
-        break;
-        case 4:
-            {
-                /*
-                    EXPERIMENT 1
-                    I tried to create a butterfly pattern. I had made something like this in python before and I tried to implement the same in OpenGL.
-                    The result was not exactly same. It kind of created a different pattern. 
-                    Interesing effects were seen when step is set 0.002 - 0.004 and you have ZOOMED OUT a little bit.......
-                */
-                GLCall(glPointSize(2));
-
-                float radius = step;
-
-                glm::vec3 center1(radius,0.0f,0.0f);     
-                glm::vec3 center2(0.0f,radius,0.0f);
-                glm::vec3 center3(-radius,0.0f,0.0f);
-                glm::vec3 center4(0.0f,-radius,0.0f);
-
-                vector<float> blue{0,0,225};
-                vector<float> pink{255,0,255};
-                vector<float>yellow{255,215,0};
-                vector<float>red{255,0,0};
-                vector<float>white{255,255,255};
-
-                vector<vector<float>>colorPalette;
-                colorPalette.emplace_back(blue);
-                colorPalette.emplace_back(pink);
-                colorPalette.emplace_back(yellow);
-                colorPalette.emplace_back(red);
-                colorPalette.emplace_back(white);
-
-
-                //blue pink yellow red white blue
-
-                vector<float>temp;
-                vector<float>temp2;
-                    
-                for(int i = 0 ; i < 100 ; i++)
-                {
-                    int colorIndex = i / 20;
-                    vector<float> color = colorPalette[colorIndex];
-
-                    temp = Bresenham::drawCircle(center1 , radius , color);
-                    temp2 = Bresenham::drawCircle(center2 , radius , color);
-                    temp.insert(temp.end() , temp2.begin() , temp2.end());
-                    temp2 = Bresenham::drawCircle(center3 , radius , color);
-                    temp.insert(temp.end() , temp2.begin() , temp2.end());
-                    temp2 = Bresenham::drawCircle(center4 , radius , color);
-                    temp.insert(temp.end() , temp2.begin() , temp2.end());
-                    pixels.insert(pixels.end() , temp.begin() , temp.end());
-                    center1 +=  glm::vec3(1.0f,0.0f,0.0f) * step;
-                    center2 += glm::vec3(0.0f,1.0f,0.0f)  * step;
-                    center3 += glm::vec3(-1.0f,0.0f,0.0f) * step;
-                    center4 += glm::vec3(0.0f,-1.0f,0.0f) * step;
-                    radius += step;
-                }                                                     
-            }
-        break;
-        case 5:
-        {
-            /*
-                EXPERIMENT 2
-                Euler Spiral
-                Made using Simpsons Approximation of the Fresnal Integrals.
-            */
-           GLCall(glPointSize(2));
-           auto cos_x_x = [](double x)
-           {
-               return cos(glm::radians(x)*glm::radians(x));
-           };
-           auto sin_x_x = [](double x)
-           {
-               return sin(glm::radians(x)*glm::radians(x));
-           };
-           const int N = 100*100;
-           int l_range = 700;
-           for(double L = -l_range ; L <= l_range ; L+=0.1)
-           {
-               double x = simpsons_approximation(0 , L , cos_x_x , N);
-               double y = simpsons_approximation(0 , L , sin_x_x , N);
-               pixels.push_back(x/10);pixels.push_back(y/10);pixels.push_back(z);
-               pixels.insert(pixels.end() , lineColor.begin() , lineColor.end());
-           }
-           
-        }
-        break;
-        case 6:
-        {
-            /*
-                EXPERMENT 3
-                Mandlebrot Set
-            */
-            int maxIteration = 100;
-            for(float x = -2 ; x <= 1; x += step)
-            {
-                for(float y = -1 ; y <= 1 ; y += step)
-                {
-                    glm::vec2 cc(x , y);
-                    double iteration = 0.0;
-                    glm::vec2 z(0);
-
-                    while(glm::length(z) <= 2 && iteration < maxIteration)
-                    {
-                        iteration++;
-                        float temp_x = z.x * z.x - z.y * z.y;
-                        float temp_y = 2 * z.x * z.y;
-                        z.x = temp_x;
-                        z.y = temp_y;
-                        z = z + cc;
-                    }
-                    pixels.push_back(cc.x);
-                    pixels.push_back(cc.y);
-                    pixels.push_back(0);
-
-                    if(iteration != maxIteration)
-                        iteration += 1.0 - log(log2(glm::length(z)));
-
-                    double hue = 360.0 * iteration / maxIteration;
-                    double saturation = 1;
-                    double value = iteration < maxIteration ? 1 :  0;
-
-                    float c = value * saturation;
-                    float m = value - saturation;
-
-                    float x = c * (1 - abs(((int)hue/60)%2 - 1));
-
-                    float r , g , b;
-
-                    if(hue >= 0 && hue <= 60)
-                    {
-                        r = c+m;
-                        g = x+m;
-                        b = m;
-                    }
-                    if(hue >= 60 && hue <= 120)
-                    {
-                        r = x+m;
-                        g = c+m;
-                        b = m;
-                    }
-                    if(hue >= 120 && hue <= 180)
-                    {
-                        r = m;
-                        g = c+m;
-                        b = x+m;
-                    }
-                    if(hue >= 180 && hue <= 240)
-                    {
-                        r = m;
-                        g = x+m;
-                        b = c+m;
-                    }
-                    if(hue >= 240 && hue <= 300)
-                    {
-                        r = x+m;
-                        g = m;
-                        b = c+m;
-                    }
-                    if(hue >= 300 && hue <= 360)
-                    {
-                        r = c+m;
-                        g = m;
-                        b = m+x;
-                    }
-                    if(hue > 360)
-                    {
-                        r = m;
-                        g = m;
-                        b = m;
-                    }
-
-                    pixels.push_back(r);
-                    pixels.push_back(g);
-                    pixels.push_back(b);
-
-                }
-            }
-        }
-        break;
-    }
-}
-
-vector<float>getArrowPixels(glm::vec3 endPoint , glm::vec3 vec_dir , vector<float>color)
-{
-    vector<float>arrow;
-    vector<float>temp;
-    glm::vec3 arrowDir = glm::vec3(rotA * glm::vec4(vec_dir * -1.0f, 1.0f)) * 0.1f;
-    arrow = Bresenham::drawLine(endPoint , endPoint + arrowDir ,color);
-    arrowDir = glm::vec3(rotC * glm::vec4(vec_dir * -1.0f , 1.0f)) * 0.1f;
-    temp = Bresenham::drawLine(endPoint , endPoint + arrowDir ,color);
-    arrow.insert(arrow.end() , temp.begin() , temp.end());
-    return arrow;
-}
-
-// This function returns the value of the vector field at a point (x,y,z)
-glm::vec3 getVector(float x , float y , float z)
-{
-    x = x / 10;
-    y = y / 10;
-    return glm::vec3(1.618 * x  * (1 - x),1.618 * y * (1 - y) , z);    
-}
-
-double simpsons_approximation(double a, double b , double (*f)(double x) , int N){
-
-    double h = (b - a) / N;
-    double s = f(a) + f(b); // a = x_0 and b = x_2n
-    for (int i = 1; i <= N - 1; ++i) { // Refer to final Simpson's formula
-        double x = a + h * i;
-        s += f(x) * ((i & 1) ? 4 : 2);
-    }
-    s *= h / 3;
-    return s;
 }

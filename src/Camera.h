@@ -71,6 +71,7 @@ public:
     void recenter(glm::vec3 position);
     ///Returns the current field of view
     float getFOV();
+    glm::vec3 getPosition();
 
 };
 

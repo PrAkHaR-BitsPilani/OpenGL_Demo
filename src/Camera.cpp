@@ -70,6 +70,11 @@ float Camera::getFOV()
     return m_fov;
 }
 
+glm::vec3 Camera::getPosition()
+{
+    return m_cameraPos;
+}
+
 void Camera::setSpeed(float speed)
 {
     m_cameraSpeed = speed;
